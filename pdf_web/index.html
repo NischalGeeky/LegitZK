@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Local PDF redaction and verifiable disclosure">
+  <title>LegitZK · PDF Disclosure Studio</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script type="module" src="/assets/studio.js"></script>
+</head>
+<body>
+<header class="topbar"><a href="/" class="brand"><span class="mark" aria-hidden="true">L</span> LegitZK</a>
+  <nav aria-label="Main navigation"><a href="#studio" data-view="studio">Redact</a><a href="#verify" data-view="verify">Verify</a><a href="#lab" data-view="lab">Integrity lab</a><button id="theme" class="quiet" type="button">Dark mode</button></nav></header>
+<main>
+  <p id="status" role="status" aria-live="polite" hidden></p>
+  <div id="view-studio" class="view">
+    <div class="studio-heading"><div><h1>Redact a PDF</h1><p class="lead">Select what to hide and export a PDF with its verification bundle.</p></div></div>
+  <section class="card" id="upload">
+    <h2>Open a source PDF</h2>
+    <form id="upload-form" class="upload-layout"><label>Original PDF<input type="file" name="pdf" accept=".pdf,application/pdf" required></label><button>Upload and commit</button></form>
+    <small>Unencrypted PDF · Up to 8 pages and 16 MiB · Processing stays on this computer</small>
+  </section>
+  <section class="workspace" id="workspace" hidden>
+    <article class="card canvas-card">
+      <div class="panel-heading"><h2>Page preview</h2>
+        <div class="actions"><button id="previous" class="quiet" aria-label="Previous page">‹</button><span id="page-index"></span><button id="next" class="quiet" aria-label="Next page">›</button></div></div>
+      <label>Drag tool <select id="mode"><option value="hide">Mark to hide</option><option value="keep">Mark to keep visible</option></select></label>
+      <small>Redactions snap outward to the 8-pixel proof grid. Review the shaded plan before exporting.</small>
+      <div class="legend"><span class="hide">Hide</span><span class="keep">Keep visible</span><span class="candidate">Unreviewed suggestion</span></div>
+      <div class="canvas-well"><canvas id="page" aria-label="Document preview with marked regions"></canvas></div>
+      <details><summary>Enter region coordinates</summary>
+        <form id="coordinates">
+          <p>Enter pixel bounds from the top-left of the displayed page. The right and bottom bounds are exclusive.</p>
+          <div class="grid"><label>Left<input name="x" type="number" required min="0" value="0"></label><label>Top<input name="y" type="number" required min="0" value="0"></label>
+            <label>Right<input name="right" type="number" required min="1" value="32"></label><label>Bottom<input name="bottom" type="number" required min="1" value="32"></label></div>
+          <button class="quiet">Add region</button>
+        </form>
+      </details>
+    </article>
+    <aside class="sidebar">
+      <section class="card"><h2>Find sensitive fields</h2>
+        <form id="detect-form">
+          <label>Custom search phrases <textarea name="custom" rows="3" placeholder="Settlement Amount =>&#10;Example Company Ltd"></textarea></label>
+          <small>One phrase per line. Add <code>=&gt;</code> to locate the same-line value after a label.</small>
+          <label class="check"><input id="financial-detection" type="checkbox" name="financial"> Include financial identifiers</label>
+          <label class="check"><input type="checkbox" name="ocr"> Include local OCR for scans</label>
+          <button>Detect fields</button>
+        </form>
+        <p id="detection-notice" role="status"></p>
+        <button id="hide-identified" class="quiet" type="button" hidden>Hide all labeled identifiers</button>
+        <div id="suggestions" class="review-list"></div>
+      </section>
+      <section class="card"><div class="panel-heading"><h2>Approved regions</h2><span class="badge" id="counts">0</span></div>
+        <p>Review every page for missed sensitive content.</p><div id="approved" class="review-list"></div>
+      </section>
+      <section class="card"><h2>Disclosure request</h2>
+        <form id="policy">
+          <label>Recipient<input name="audience" maxlength="100" required placeholder="External reviewer"></label>
+          <button>Review redaction plan</button>
+        </form>
+        <p id="plan-summary" role="status"></p>
+        <ul id="privacy-inference" class="review-list"></ul>
+        <label class="check"><input type="checkbox" id="scan-export" checked> Scan final PDF for protected values using local OCR</label>
+        <p id="release-scan-status" role="status"></p>
+        <ul id="release-findings" class="review-list"></ul>
+        <details id="exposure-panel" hidden open>
+          <summary>Cumulative exposure</summary>
+          <p id="exposure-summary" role="status"></p>
+          <ul id="exposure-pages"></ul>
+          <small>Uses this exact source and recipient label. Record exports intended for this recipient to include them in future checks.</small>
+          <label class="check"><input id="record-exposure" type="checkbox"> Record this export locally</label>
+        </details>
+        <div class="actions"><button id="prove" disabled>Generate proof and PDF</button><button id="save-source-receipt" class="quiet">Save source receipt</button><button id="close" class="quiet">Close source</button></div>
+        <div class="actions" id="exports" hidden><button class="quiet" id="save-pdf">Download redacted PDF</button><button class="quiet" id="save-proof">Download proof ZIP</button></div>
+      </section>
+    </aside>
+  </section>
+  </div>
+  <div id="view-verify" class="view" hidden>
+    <div class="studio-heading"><div><h1>Verify a disclosure</h1><p class="lead">Confirm the PDF and locate changed or missing evidence files.</p></div></div>
+    <section class="card verifier">
+      <form id="verify-form"><div class="grid">
+        <label>Redacted PDF<input required name="pdf" type="file" accept=".pdf,application/pdf"></label>
+        <label>Proof ZIP<input required name="zip" type="file" accept=".zip,application/zip"></label>
+      </div>
+        <div><button>Verify disclosure</button></div>
+        <label class="check"><input type="checkbox" name="forensic_ocr"> Compare visible field values with OCR if the PDF changed</label>
+        <details><summary>Check against an expected source</summary>
+          <p>Use a signed receipt you saved at ingestion or received independently before disclosure.</p>
+          <label>Expected source receipt<input name="expected" type="file" accept=".json,application/json"></label>
+        </details>
+      </form>
+      <p id="result" role="status" aria-live="polite"></p>
+      <button id="save-inspection" class="quiet" type="button" hidden>Download inspection report</button>
+      <ul id="file-checks" class="file-checks"></ul>
+      <p id="verify-comparison" hidden></p>
+      <ul id="verify-changes"></ul>
+      <ul id="verify-ocr-fields"></ul>
+      <img id="verify-preview" hidden alt="Submitted PDF page with changed regions outlined">
+    </section>
+  </div>
+  <div id="view-lab" class="view" hidden>
+    <div class="studio-heading"><div><h1>Integrity lab</h1><p class="lead">Edit a test copy or compare two source revisions.</p></div></div>
+    <section class="card verifier">
+      <h2>Edit a PDF test copy</h2>
+      <p>Apply each edit to the working copy, one region at a time. Download the result when you finish.</p>
+      <form id="revision-editor">
+        <label>PDF to edit<input required name="file" type="file" accept=".pdf,application/pdf"></label>
+        <div class="grid">
+          <label>Page number<input required type="number" name="page" min="1" max="8" value="1"></label>
+          <label>Edit mode<select name="mode"><option value="native">Replace extractable text</option>
+          <option value="raster" selected>Replace visible pixels</option></select></label>
+        </div>
+        <label id="revision-old" hidden>Original value<input name="old" maxlength="120"></label>
+        <div id="revision-region">
+          <button id="revision-preview" class="quiet" type="button">Preview page</button>
+          <p>Drag a rectangle around the visible value.</p>
+          <canvas id="revision-canvas" hidden aria-label="Page preview for choosing the value to replace"></canvas>
+        </div>
+        <label>Replacement value<input required name="replacement" maxlength="120"></label>
+        <div class="actions">
+          <button id="revision-apply" type="submit">Apply edit</button>
+          <button id="revision-download" class="quiet" type="button" disabled>Download edited test copy</button>
+        </div>
+      </form>
+      <p id="revision-status" role="status"></p>
+      <dl id="revision-hashes" hidden>
+        <dt>Original SHA-256</dt><dd><code id="revision-original-hash"></code></dd>
+        <dt>Edited copy SHA-256</dt><dd><code id="revision-edited-hash"></code></dd>
+      </dl>
+    </section>
+    <section class="card verifier">
+      <h2>Investigate a source revision</h2>
+      <p>Use the original source PDF and its saved receipt. For a redacted candidate, add the proof ZIP from that export so the comparison accounts for authorized redactions.</p>
+      <form id="source-investigation">
+        <div class="grid">
+          <label>Baseline PDF<input name="baseline" type="file" accept=".pdf,application/pdf" required></label>
+          <label>Candidate PDF<input name="candidate" type="file" accept=".pdf,application/pdf" required></label>
+          <label>Saved source receipt<input name="receipt" type="file" accept=".json,application/json" required></label>
+          <label>Proof ZIP for a redacted candidate<input name="proof" type="file" accept=".zip,application/zip"></label>
+        </div>
+        <label class="check"><input name="include_values" type="checkbox"> Include field values in results and report</label>
+        <div><button>Compare source PDFs</button></div>
+      </form>
+      <div class="actions">
+        <button id="field-example" class="quiet" type="button">Run synthetic field-change test</button>
+        <button id="save-field-example" class="quiet" type="button" hidden>Download test PDFs and receipt</button>
+      </div>
+      <p id="investigation-result" role="status"></p>
+      <ul id="investigation-disclosure-changes"></ul>
+      <img id="investigation-disclosure-preview" hidden alt="Candidate PDF with differences from the verified export outlined">
+      <div id="investigation-detail" hidden>
+        <h3>Signature and provenance</h3>
+        <dl id="investigation-provenance"></dl>
+        <h3>Native field differences</h3>
+        <ul id="investigation-fields"></ul>
+        <h3>Visual findings</h3>
+        <ul id="investigation-pages"></ul>
+        <img id="investigation-preview" hidden alt="Outlined changes in the candidate">
+        <h3>Structural observations</h3>
+        <ul id="investigation-structure"></ul>
+        <details><summary>Analysis limitations</summary><ul id="investigation-limits"></ul></details>
+        <button id="save-investigation" class="quiet" type="button">Download investigation report</button>
+      </div>
+    </section>
+  </div>
+</main>
+<footer><strong>LegitZK</strong><span>Local PDF disclosure studio</span></footer>
+</body>
+</html>

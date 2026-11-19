@@ -1,0 +1,8 @@
+{
+  "vendor": "Northwind Components",
+  "buyer": "Cedar Harbor Systems",
+  "effective_date": "2026-10-20",
+  "service": "Quarterly sample inventory inspection",
+  "bank_reference": "SYNTHETIC-DO-NOT-PAY",
+  "amount": 8123456
+}

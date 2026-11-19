@@ -1,0 +1,73 @@
+{
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "python": "3.12.14",
+  "pymupdf": "1.26.6",
+  "results": [
+    {
+      "fixture": "clean",
+      "expected_byte_change": false,
+      "detected_byte_change": false,
+      "expected_field_changes": 0,
+      "detected_field_changes": 0,
+      "visual_status": "identical",
+      "attribution": "no_byte_change",
+      "median_ms": 3.7371210005403555,
+      "samples_ms": [
+        4.904351000732277,
+        4.038434999529272,
+        3.8615510002273368,
+        3.748062000340724,
+        3.5426969998297864,
+        3.8157230001161224,
+        3.726180000739987,
+        3.699580000102287,
+        3.492873000141117,
+        3.4907399995063315
+      ]
+    },
+    {
+      "fixture": "field",
+      "expected_byte_change": true,
+      "detected_byte_change": true,
+      "expected_field_changes": 1,
+      "detected_field_changes": 1,
+      "visual_status": "differences",
+      "attribution": "actor_unknown",
+      "median_ms": 7.517716999700497,
+      "samples_ms": [
+        16.3748859995394,
+        7.621041000675177,
+        7.3555059998398065,
+        7.22691400005715,
+        7.849341000110144,
+        7.442174000061641,
+        7.357558999501634,
+        7.715241000369133,
+        7.593259999339352,
+        7.148978999794053
+      ]
+    },
+    {
+      "fixture": "metadata",
+      "expected_byte_change": true,
+      "detected_byte_change": true,
+      "expected_field_changes": 0,
+      "detected_field_changes": 0,
+      "visual_status": "byte_difference_only",
+      "attribution": "actor_unknown",
+      "median_ms": 5.177317499601486,
+      "samples_ms": [
+        5.190295999454975,
+        5.164338999747997,
+        5.159610999726283,
+        5.132250000315253,
+        5.512957000064489,
+        5.47452000046178,
+        5.105580999952508,
+        5.140041999766254,
+        5.220551999627787,
+        5.497722999280086
+      ]
+    }
+  ]
+}

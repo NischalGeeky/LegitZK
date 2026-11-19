@@ -1,0 +1,232 @@
+{
+  "1": {
+    "samples": 10,
+    "medians": {
+      "ingest_ms": 133.876,
+      "prove_ms": 161.376,
+      "verify_ms": 169.36,
+      "pdf_bytes": 12221.0,
+      "bundle_bytes": 75236.0,
+      "proof_bytes": 160.0,
+      "tiles": 900.0,
+      "redacted_tiles": 20.0
+    },
+    "raw": [
+      {
+        "ingest_ms": 135.282378999932,
+        "prove_ms": 160.2490420000322,
+        "verify_ms": 167.77601499995853,
+        "pdf_bytes": 12221,
+        "bundle_bytes": 75236,
+        "proof_bytes": 160,
+        "tiles": 900,
+        "redacted_tiles": 20
+      },
+      {
+        "ingest_ms": 132.05293599992274,
+        "prove_ms": 160.1037660000202,
+        "verify_ms": 165.73950700001205,
+        "pdf_bytes": 12221,
+        "bundle_bytes": 75236,
+        "proof_bytes": 160,
+        "tiles": 900,
+        "redacted_tiles": 20
+      },
+      {
+        "ingest_ms": 127.76549099999102,
+        "prove_ms": 166.7095690000906,
+        "verify_ms": 184.14020799991704,
+        "pdf_bytes": 12221,
+        "bundle_bytes": 75236,
+        "proof_bytes": 160,
+        "tiles": 900,
+        "redacted_tiles": 20
+      },
+      {
+        "ingest_ms": 135.3905290000057,
+        "prove_ms": 162.5035450000496,
+        "verify_ms": 177.0074219999742,
+        "pdf_bytes": 12221,
+        "bundle_bytes": 75236,
+        "proof_bytes": 160,
+        "tiles": 900,
+        "redacted_tiles": 20
+      },
+      {
+        "ingest_ms": 134.20723000001544,
+        "prove_ms": 163.64844699990044,
+        "verify_ms": 174.83761500000128,
+        "pdf_bytes": 12221,
+        "bundle_bytes": 75236,
+        "proof_bytes": 160,
+        "tiles": 900,
+        "redacted_tiles": 20
+      },
+      {
+        "ingest_ms": 135.9183839999787,
+        "prove_ms": 165.08445099998426,
+        "verify_ms": 172.81603700007508,
+        "pdf_bytes": 12221,
+        "bundle_bytes": 75236,
+        "proof_bytes": 160,
+        "tiles": 900,
+        "redacted_tiles": 20
+      },
+      {
+        "ingest_ms": 136.2855080000145,
+        "prove_ms": 162.9117300000189,
+        "verify_ms": 169.93355099998553,
+        "pdf_bytes": 12221,
+        "bundle_bytes": 75236,
+        "proof_bytes": 160,
+        "tiles": 900,
+        "redacted_tiles": 20
+      },
+      {
+        "ingest_ms": 133.54393600002368,
+        "prove_ms": 155.30840400003854,
+        "verify_ms": 163.80650999997215,
+        "pdf_bytes": 12221,
+        "bundle_bytes": 75236,
+        "proof_bytes": 160,
+        "tiles": 900,
+        "redacted_tiles": 20
+      },
+      {
+        "ingest_ms": 129.132641999945,
+        "prove_ms": 154.41486600002463,
+        "verify_ms": 166.10724099996332,
+        "pdf_bytes": 12221,
+        "bundle_bytes": 75236,
+        "proof_bytes": 160,
+        "tiles": 900,
+        "redacted_tiles": 20
+      },
+      {
+        "ingest_ms": 128.63393099996756,
+        "prove_ms": 156.91674499998953,
+        "verify_ms": 168.7854840000682,
+        "pdf_bytes": 12221,
+        "bundle_bytes": 75236,
+        "proof_bytes": 160,
+        "tiles": 900,
+        "redacted_tiles": 20
+      }
+    ]
+  },
+  "3": {
+    "samples": 10,
+    "medians": {
+      "ingest_ms": 393.488,
+      "prove_ms": 479.445,
+      "verify_ms": 509.118,
+      "pdf_bytes": 35322.0,
+      "bundle_bytes": 224116.0,
+      "proof_bytes": 160.0,
+      "tiles": 2700.0,
+      "redacted_tiles": 60.0
+    },
+    "raw": [
+      {
+        "ingest_ms": 417.43118500005494,
+        "prove_ms": 509.68295199993463,
+        "verify_ms": 536.3684950000334,
+        "pdf_bytes": 35322,
+        "bundle_bytes": 224116,
+        "proof_bytes": 160,
+        "tiles": 2700,
+        "redacted_tiles": 60
+      },
+      {
+        "ingest_ms": 396.17698799997925,
+        "prove_ms": 482.3495929999808,
+        "verify_ms": 539.052948999938,
+        "pdf_bytes": 35322,
+        "bundle_bytes": 224116,
+        "proof_bytes": 160,
+        "tiles": 2700,
+        "redacted_tiles": 60
+      },
+      {
+        "ingest_ms": 385.84785799992005,
+        "prove_ms": 471.6543200000842,
+        "verify_ms": 499.78220399998463,
+        "pdf_bytes": 35322,
+        "bundle_bytes": 224116,
+        "proof_bytes": 160,
+        "tiles": 2700,
+        "redacted_tiles": 60
+      },
+      {
+        "ingest_ms": 404.29863999997906,
+        "prove_ms": 599.4644869999775,
+        "verify_ms": 517.5226850000172,
+        "pdf_bytes": 35322,
+        "bundle_bytes": 224116,
+        "proof_bytes": 160,
+        "tiles": 2700,
+        "redacted_tiles": 60
+      },
+      {
+        "ingest_ms": 400.68616600001405,
+        "prove_ms": 476.54088799993133,
+        "verify_ms": 498.80978000010145,
+        "pdf_bytes": 35322,
+        "bundle_bytes": 224116,
+        "proof_bytes": 160,
+        "tiles": 2700,
+        "redacted_tiles": 60
+      },
+      {
+        "ingest_ms": 381.8350949999285,
+        "prove_ms": 464.88458600003923,
+        "verify_ms": 513.6707970000316,
+        "pdf_bytes": 35322,
+        "bundle_bytes": 224116,
+        "proof_bytes": 160,
+        "tiles": 2700,
+        "redacted_tiles": 60
+      },
+      {
+        "ingest_ms": 403.42444800000976,
+        "prove_ms": 491.14355100005014,
+        "verify_ms": 504.56506900002296,
+        "pdf_bytes": 35322,
+        "bundle_bytes": 224116,
+        "proof_bytes": 160,
+        "tiles": 2700,
+        "redacted_tiles": 60
+      },
+      {
+        "ingest_ms": 390.79953500004194,
+        "prove_ms": 483.48084799999924,
+        "verify_ms": 527.7764329999854,
+        "pdf_bytes": 35322,
+        "bundle_bytes": 224116,
+        "proof_bytes": 160,
+        "tiles": 2700,
+        "redacted_tiles": 60
+      },
+      {
+        "ingest_ms": 382.6964769999677,
+        "prove_ms": 464.59422399993855,
+        "verify_ms": 493.18858300000556,
+        "pdf_bytes": 35322,
+        "bundle_bytes": 224116,
+        "proof_bytes": 160,
+        "tiles": 2700,
+        "redacted_tiles": 60
+      },
+      {
+        "ingest_ms": 386.9065569999748,
+        "prove_ms": 466.9154160000062,
+        "verify_ms": 491.2768300000607,
+        "pdf_bytes": 35322,
+        "bundle_bytes": 224116,
+        "proof_bytes": 160,
+        "tiles": 2700,
+        "redacted_tiles": 60
+      }
+    ]
+  }
+}

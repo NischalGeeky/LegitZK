@@ -1,0 +1,15 @@
+services:
+  legitzk:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      LEGITZK_HTTPS: "${LEGITZK_HTTPS:-0}"
+    volumes:
+      - legitzk-data:/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  legitzk-data:

@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+data/
+demo-output/
+.env
+
+.legitzk-pdf/
+libsodium.dll
