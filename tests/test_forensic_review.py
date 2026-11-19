@@ -97,12 +97,23 @@ class SourceForensicsTests(TestCase):
                 example = response.json()
                 report = example["investigation"]
                 self.assertFalse(report["candidate_matches_signed_bytes"])
-                field, = report["field_analysis"]["changes"]
-                self.assertEqual((field["field"], field["baseline_value"], field["candidate_value"]),
-                                 ("Review score", "78", "96"))
+                self.assertEqual({
+                    field["field"]: (field["baseline_value"], field["candidate_value"])
+                    for field in report["field_analysis"]["changes"]
+                }, {"Debit amount": ("150.00", "170.00"), "Credit amount": ("420.00", "460.00"),
+                    "Closing balance": ("1270.00", "1290.00")})
+                self.assertGreaterEqual(len(report["visual"]["changes"][0]["regions"]), 3)
                 with ZipFile(BytesIO(b64decode(example["zip_base64"]))) as files:
+                    proof_zip = files.read("legitzk-proof.zip")
+                    original = files.read("synthetic-baseline-redacted.pdf")
+                    modified = files.read("synthetic-modified-redacted.pdf")
+                    self.assertTrue(pdf_studio.inspect_bundle(proof_zip, original, "")["valid"])
+                    rejected = pdf_studio.inspect_bundle(proof_zip, modified, "")
+                    self.assertFalse(rejected["valid"])
+                    self.assertEqual(rejected["files"]["redacted.pdf"], "changed")
+                    self.assertGreaterEqual(len(rejected["comparison"]["changes"][0]["regions"]), 3)
                     candidate = files.read("synthetic-modified.pdf")
                     with fitz.open(stream=candidate, filetype="pdf") as doc:
                         extracted = doc[0].get_text()
-                    self.assertIn("Review score: 96", extracted)
-                    self.assertNotIn("Review score: 78", extracted)
+                    self.assertIn("Debit amount: 170.00", extracted)
+                    self.assertNotIn("Debit amount: 150.00", extracted)
