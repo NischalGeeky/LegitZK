@@ -88,10 +88,14 @@ def exercise(browser, origin, folder):
     expected = json.loads(downloaded.value.path().read_bytes())
     sign_out(page)
     sign_in(page, REGISTER[0])
-    source_url = origin + "/api/documents/" + doc + "/source.pdf"
-    source_response = page.request.get(source_url)
-    expect(source_response).to_be_ok()
-    pdf_data = source_response.body()
+    source_path = f"/api/documents/{doc}/source.pdf"
+    pdf_data = bytes(page.evaluate("""async (path) => {
+        const response = await fetch(path, {credentials: "same-origin"});
+        if (!response.ok) {
+            throw new Error(`Source PDF download failed (HTTP ${response.status}): ${await response.text()}`);
+        }
+        return Array.from(new Uint8Array(await response.arrayBuffer()));
+    }""", source_path))
     assert pdf_data.startswith(b"%PDF-"), "The source endpoint did not return a PDF"
     source_file = Path(folder) / "source.pdf"
     source_file.write_bytes(pdf_data)
