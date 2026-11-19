@@ -36,11 +36,20 @@ def sign_in(page, email):
     form.get_by_label("Password").fill(PASSWORD)
     form.get_by_role("button", name="Sign in").click()
     expect(page.get_by_role("heading", name="Contract assurance")).to_be_visible()
+    expect(page.get_by_text(email, exact=True)).to_be_visible()
 
 
 def sign_out(page):
     page.get_by_role("button", name="Sign out").click()
     expect(page.get_by_role("heading", name="Sign in")).to_be_visible()
+
+
+def open_role(browser, origin, email, errors):
+    page = browser.new_page()
+    page.on("pageerror", lambda err: errors.append(str(err)))
+    page.goto(origin)
+    sign_in(page, email)
+    return page
 
 
 def upload_json(page, label, value):
@@ -78,18 +87,17 @@ def exercise(browser, origin, folder):
     expect(page.get_by_role("status")).to_contain_text("Signed contract issued")
     doc = re.search(r"[0-9a-f]{32}$", page.get_by_role("status").inner_text()).group()
     sign_out(page)
-    sign_in(page, REGISTER[1])
-    page.get_by_label("Document reference").fill(doc)
-    page.get_by_label("Minimum contract amount").fill("7000000")
-    page.get_by_role("button", name="Create request").click()
-    expect(page.get_by_role("status")).to_have_text("Audit request created.")
-    with page.expect_download() as downloaded:
-        page.get_by_role("button", name="Export request").click()
+    auditor = open_role(browser, origin, REGISTER[1], errors)
+    auditor.get_by_label("Document reference").fill(doc)
+    auditor.get_by_label("Minimum contract amount").fill("7000000")
+    auditor.get_by_role("button", name="Create request").click()
+    expect(auditor.get_by_role("status")).to_have_text("Audit request created.")
+    with auditor.expect_download() as downloaded:
+        auditor.get_by_role("button", name="Export request").click()
     expected = json.loads(downloaded.value.path().read_bytes())
-    sign_out(page)
-    sign_in(page, REGISTER[0])
+    owner = open_role(browser, origin, REGISTER[0], errors)
     source_path = f"/api/documents/{doc}/source.pdf"
-    pdf_data = bytes(page.evaluate("""async (path) => {
+    pdf_data = bytes(owner.evaluate("""async (path) => {
         const response = await fetch(path, {credentials: "same-origin"});
         if (!response.ok) {
             throw new Error(`Source PDF download failed (HTTP ${response.status}): ${await response.text()}`);
@@ -99,32 +107,31 @@ def exercise(browser, origin, folder):
     assert pdf_data.startswith(b"%PDF-"), "The source endpoint did not return a PDF"
     source_file = Path(folder) / "source.pdf"
     source_file.write_bytes(pdf_data)
-    page.get_by_label("Match a downloaded source PDF").set_input_files(source_file)
-    page.get_by_role("button", name="Check signed fingerprint").click()
-    expect(page.get_by_role("status")).to_contain_text("matches the signed source fingerprint")
-    page.get_by_text("Open redaction studio").click()
-    expect(page.locator('iframe[title="Disclosure PDF preview"]')).to_be_visible()
-    page.get_by_role("button", name="Generate proof and share").click()
-    expect(page.get_by_role("status")).to_contain_text("Disclosure shared")
-    sign_out(page)
-    sign_in(page, REGISTER[1])
-    page.get_by_role("link", name="Open evidence").click()
-    page.get_by_role("button", name="Verify disclosure").click()
-    expect(page.get_by_role("heading", name="Disclosure verified")).to_be_visible()
-    with page.expect_download() as downloaded:
-        page.get_by_role("link", name="Download package").click()
+    owner.get_by_label("Match a downloaded source PDF").set_input_files(source_file)
+    owner.get_by_role("button", name="Check signed fingerprint").click()
+    expect(owner.get_by_role("status")).to_contain_text("matches the signed source fingerprint")
+    owner.get_by_text("Open redaction studio").click()
+    expect(owner.locator('iframe[title="Disclosure PDF preview"]')).to_be_visible()
+    owner.get_by_role("button", name="Generate proof and share").click()
+    expect(owner.get_by_role("status")).to_contain_text("Disclosure shared")
+    auditor.reload()
+    auditor.get_by_role("link", name="Open evidence").click()
+    auditor.get_by_role("button", name="Verify disclosure").click()
+    expect(auditor.get_by_role("heading", name="Disclosure verified")).to_be_visible()
+    with auditor.expect_download() as downloaded:
+        auditor.get_by_role("link", name="Download package").click()
     package = json.loads(downloaded.value.path().read_bytes())
-    trust = page.request.get(origin + "/api/trust").json()
-    page.get_by_role("link", name="Verify a package").click()
-    upload_json(page, "Disclosure package", package)
-    upload_json(page, "Expected audit request", expected)
-    upload_json(page, "Trusted issuer keys", trust)
-    page.get_by_role("button", name="Verify package").click()
-    expect(page.get_by_role("heading", name="Disclosure verified")).to_be_visible()
+    trust = auditor.request.get(origin + "/api/trust").json()
+    auditor.get_by_role("link", name="Verify a package").click()
+    upload_json(auditor, "Disclosure package", package)
+    upload_json(auditor, "Expected audit request", expected)
+    upload_json(auditor, "Trusted issuer keys", trust)
+    auditor.get_by_role("button", name="Verify package").click()
+    expect(auditor.get_by_role("heading", name="Disclosure verified")).to_be_visible()
     package["signature"] = "00" * 64
-    upload_json(page, "Disclosure package", package)
-    page.get_by_role("button", name="Verify package").click()
-    expect(page.get_by_role("heading", name="Verification failed")).to_be_visible()
+    upload_json(auditor, "Disclosure package", package)
+    auditor.get_by_role("button", name="Verify package").click()
+    expect(auditor.get_by_role("heading", name="Verification failed")).to_be_visible()
     assert not errors, errors
 
 
