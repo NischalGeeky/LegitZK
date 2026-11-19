@@ -89,9 +89,13 @@ def exercise(browser, origin, folder):
     sign_out(page)
     sign_in(page, REGISTER[0])
     source_url = origin + "/api/documents/" + doc + "/source.pdf"
-    pdf_data = page.request.get(source_url).body()
-    page.get_by_label("Match a downloaded source PDF").set_input_files({
-        "name": "source.pdf", "mimeType": "application/pdf", "buffer": pdf_data})
+    source_response = page.request.get(source_url)
+    expect(source_response).to_be_ok()
+    pdf_data = source_response.body()
+    assert pdf_data.startswith(b"%PDF-"), "The source endpoint did not return a PDF"
+    source_file = Path(folder) / "source.pdf"
+    source_file.write_bytes(pdf_data)
+    page.get_by_label("Match a downloaded source PDF").set_input_files(source_file)
     page.get_by_role("button", name="Check signed fingerprint").click()
     expect(page.get_by_role("status")).to_contain_text("matches the signed source fingerprint")
     page.get_by_text("Open redaction studio").click()
