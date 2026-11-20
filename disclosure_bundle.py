@@ -13,6 +13,7 @@ DOMAIN = "LegitZK/pdf/export-inventory/v1"
 FILES = {"package": "proof-package.json", "receipt": "source-receipt.json",
          "request": "verification-request.json", "key": "ingestion-key.json"}
 PDF = "redacted.pdf"
+FIELDS = "disclosed-fields.json"
 MANIFEST = "export-manifest.json"
 MAX_ZIP = 48_000_000
 MAX_JSON = 72_000_000
@@ -23,10 +24,12 @@ def digest(raw):
     return sha256(raw).hexdigest()
 
 
-def pack(package, pdf, signing_key, public_key):
+def pack(package, pdf, signing_key, public_key, fields=None):
     values = {"package": package, "receipt": package["receipt"], "request": package["request"],
               "key": {"public_key": public_key}}
     files = {name: canonical(values[field]) for field, name in FILES.items()}
+    if fields:
+        files[FIELDS] = canonical(fields)
     hashes = {name: digest(raw) for name, raw in files.items()}
     hashes[PDF] = digest(pdf)
     manifest = {"files": hashes, "signature": signing_key.sign(framed(DOMAIN, hashes)).hex()}
@@ -39,7 +42,7 @@ def pack(package, pdf, signing_key, public_key):
 
 
 def unpack(raw, pdf, trusted_keys):
-    expected = {*FILES.values(), MANIFEST}
+    expected = {*FILES.values(), MANIFEST, FIELDS}
     try:
         with ZipFile(BytesIO(raw)) as archive:
             entries = archive.infolist()
@@ -55,7 +58,10 @@ def unpack(raw, pdf, trusted_keys):
     manifest = parse_json(files[MANIFEST])
     shape(manifest, ("files", "signature"))
     hashes = manifest["files"]
-    shape(hashes, (*FILES.values(), PDF))
+    required = (*FILES.values(), PDF)
+    shape(hashes, (*required, FIELDS) if isinstance(hashes, dict) and FIELDS in hashes else required)
+    if FIELDS in files and FIELDS not in hashes:
+        raise ValueError("The field inventory is unsigned.")
     for value in hashes.values():
         valid_hex(value, 32)
     signature = valid_hex(manifest["signature"], 64)
@@ -72,6 +78,9 @@ def unpack(raw, pdf, trusted_keys):
     checks = {name: ("missing" if name not in files else
                      "match" if digest(files[name]) == value else "changed")
               for name, value in hashes.items()}
-    if any(checks[name] != "match" for name in FILES.values()):
+    if any(state != "match" for name, state in checks.items() if name != PDF):
         return None, checks, trusted_key
-    return {field: parse_json(files[name]) for field, name in FILES.items()}, checks, trusted_key
+    evidence = {field: parse_json(files[name]) for field, name in FILES.items()}
+    if FIELDS in hashes:
+        evidence["fields"] = parse_json(files[FIELDS])
+    return evidence, checks, trusted_key

@@ -30,6 +30,7 @@ import field_detector
 import forensic_review
 import revision_test
 import privacy_review
+import field_equality
 from exposure import ExposureHistory
 import pdf_redaction as core
 from protocol import canonical, parse_json, shape, valid_hex
@@ -92,7 +93,7 @@ async def read(req, limit):
 
 def prune():
     now = monotonic()
-    for item, (deadline, _) in list(WORKSPACES.items()):
+    for item, (deadline, _, _) in list(WORKSPACES.items()):
         if deadline < now:
             del WORKSPACES[item]
 
@@ -142,7 +143,7 @@ def register(source):
         prune()
         if len(WORKSPACES) >= 2:
             WORKSPACES.popitem(last=False)
-        WORKSPACES[token] = (monotonic() + MINUTES * 60, source)
+        WORKSPACES[token] = (monotonic() + MINUTES * 60, source, {})
     return {"workspace": token, "receipt": source[0], "tile": core.TILE}
 
 
@@ -238,7 +239,7 @@ async def prove_adaptive(req: Request):
 async def export_adaptive(req: Request):
     source = adaptive_source(req)
     data = parse_json(await read(req, 256_000))
-    if not isinstance(data, dict) or "request" not in data or data.keys() - {"request", "record_exposure", "scan_export"}:
+    if not isinstance(data, dict) or "request" not in data or data.keys() - {"request", "record_exposure", "scan_export", "provable_fields"}:
         raise ValueError("Invalid export request.")
     record = data.get("record_exposure", False)
     scan = data.get("scan_export", False)
@@ -256,7 +257,18 @@ async def export_adaptive(req: Request):
         leak_report = privacy_review.leak_scan(pdf, source[-1], masked, source[1]) if scan else None
         if leak_report and leak_report["status"] == "findings":
             return {"leak_scan": leak_report}
-        archive = bundle.pack(package, pdf, app.state.key, app.state.public)
+        fields, witnesses = field_equality.issue(
+            data.get("provable_fields", []), source[0], request, package["pdf_sha256"], app.state.key)
+        archive = bundle.pack(package, pdf, app.state.key, app.state.public, fields)
+        if witnesses:
+            with LOCK:
+                prune()
+                entry = WORKSPACES.get(req.headers.get("x-legitzk-workspace"))
+                if entry is None or entry[1] is not source:
+                    raise ValueError("The owner workspace expired during export.")
+                if len(entry[2]) + len(witnesses) > 256:
+                    raise ValueError("This workspace has reached its private field limit.")
+                entry[2].update(witnesses)
         response = {"zip_base64": base64.b64encode(archive).decode(),
                     "pdf_base64": base64.b64encode(pdf).decode(), "metrics": metrics, "sanitization": audit,
                     "leak_scan": leak_report}
@@ -416,6 +428,18 @@ def inspect_bundle(raw, pdf, demo, expected=None, ocr=False):
         except (fitz.FileDataError, ValueError, RuntimeError):
             result["comparison"] = {"status": "unreadable", "changes": []}
         return result
+    if "fields" in evidence:
+        fields = evidence["fields"]
+        if not isinstance(fields, list) or len(fields) > field_equality.MAX_FIELDS:
+            raise ValueError("Invalid signed field inventory.")
+        receipt_hash = bundle.digest(canonical(receipt))
+        for record in fields:
+            field = field_equality.check_record(record, trusted_key)
+            if (field["receipt_sha256"] != receipt_hash or field["pdf_sha256"] != result["inputs"]["pdf_sha256"]
+                    or field["region"] not in request["hide"]):
+                raise ValueError("A field record belongs to a different disclosure.")
+        result["provable_fields"] = fields
+        result["field_issuer"] = trusted_key
     return {**verified, **result, "proof_valid": True, "valid": result.get("source_match") != "mismatch"}
 
 
@@ -441,6 +465,50 @@ async def inspect(req: Request):
     if ocr not in ("0", "1"):
         raise ValueError("Invalid forensic OCR option.")
     return await run_in_threadpool(inspect_bundle, raw[:size], raw[size:], demo, expected, ocr == "1")
+
+
+@app.post("/api/v2/field-equality/request")
+async def request_field_equality(req: Request):
+    data = parse_json(await read(req, 16_384))
+    shape(data, ("record", "candidate", "issuer"))
+    if data["issuer"] not in app.state.trusted_keys:
+        raise ValueError("The field issuer is not trusted.")
+    field = field_equality.check_record(data["record"], data["issuer"])
+    request = {"field_id": field["id"], "record_sha256": bundle.digest(canonical(data["record"])),
+               "nonce": token_hex(32), "candidate": data["candidate"]}
+    field_equality.check_request(request, data["record"])
+    return request
+
+
+@app.post("/api/v2/field-equality/prove")
+async def prove_field_equality(req: Request):
+    data = parse_json(await read(req, 16_384))
+    shape(data, ("request", "approved"))
+    if data["approved"] is not True:
+        raise ValueError("Approve this exact candidate before generating a proof.")
+    request = data["request"]
+    shape(request, ("field_id", "record_sha256", "nonce", "candidate"))
+    valid_hex(request["field_id"], 16)
+    with LOCK:
+        prune()
+        entry = WORKSPACES.get(req.headers.get("x-legitzk-workspace"))
+        witness = entry[2].get(request["field_id"]) if entry else None
+    if witness is None:
+        raise ValueError("The private field is unavailable. Keep the original export workspace open.")
+    proof = await run_in_threadpool(field_equality.prove, witness, request)
+    return {"proof": proof}
+
+
+@app.post("/api/v2/field-equality/verify")
+async def verify_field_equality(req: Request):
+    data = parse_json(await read(req, 16_384))
+    shape(data, ("record", "request", "proof", "issuer"))
+    if data["issuer"] not in app.state.trusted_keys:
+        raise ValueError("The field issuer is not trusted.")
+    field_equality.check_record(data["record"], data["issuer"])
+    valid = await run_in_threadpool(
+        field_equality.verify, data["record"], data["request"], data["proof"])
+    return {"valid": valid}
 
 
 @app.post("/api/close")

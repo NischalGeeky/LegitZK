@@ -3,6 +3,7 @@ const canvas = get("page");
 const context = canvas.getContext("2d");
 let source, policy, result, image, drag, generating = false, pageNo = 0, imageRevision = 0;
 const regions = [];
+let provableFields = [];
 let suggestions = [], masked = [], revision = 0;
 const theme = get("theme");
 function setTheme(dark) {
@@ -184,6 +185,10 @@ async function loadPage(index) {
 function invalidatePolicy() {
   revision++;
   policy = result = undefined;
+  provableFields = [];
+  get("field-registration").hidden = true;
+  get("register-field").reset();
+  get("registered-fields").replaceChildren();
   masked = [];
   get("plan-summary").textContent = "";
   for (const id of ["privacy-inference", "release-scan-status", "release-findings"]) get(id).replaceChildren();
@@ -305,6 +310,13 @@ submit(get("policy"), async (event) => {
   const plan = await (await api("v2/request", payload)).json();
   if (version !== revision) throw new Error("The approved regions changed. Build a fresh plan.");
   policy = plan.request;
+  provableFields = [];
+  get("register-field").reset();
+  get("registered-fields").replaceChildren();
+  const fieldRegions = get("register-field").elements.region;
+  fieldRegions.replaceChildren(...policy.hide.map((box, i) =>
+    new Option(`Region ${i + 1} · Page ${box[0] + 1} · ${box.slice(1).join(", ")}`, i)));
+  get("field-registration").hidden = !policy.hide.length;
   result = undefined;
   masked = plan.masked;
   const metrics = plan.metrics;
@@ -318,6 +330,30 @@ submit(get("policy"), async (event) => {
   paint();
   status("Plan checked. Review the preview, then generate the PDF and proof ZIP.");
 });
+submit(get("register-field"), (event) => {
+  if (!policy || generating) throw new Error("Wait for the export to finish and review the plan.");
+  if (provableFields.length >= 16) throw new Error("Register up to 16 fields per export.");
+  const {label, type, unit, value, region} = inputs(event.target);
+  const field = {label, type, unit: unit.trim().toUpperCase(), value, region: policy.hide[Number(region)]};
+  provableFields.push(field);
+  const row = document.createElement("li");
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "quiet";
+  remove.textContent = "Remove";
+  remove.onclick = () => {
+    if (generating) return;
+    provableFields = provableFields.filter(item => item !== field);
+    result = undefined;
+    row.remove();
+    update();
+  };
+  row.append(`${label} · ${type}${unit ? " · " + field.unit : ""} `, remove);
+  get("registered-fields").append(row);
+  event.target.reset();
+  result = undefined;
+});
+
 click("prove", async () => {
   status("Building the redacted PDF and proof…");
   const request = policy;
@@ -329,7 +365,7 @@ click("prove", async () => {
     result = undefined;
     update();
     const scan_export = get("scan-export").checked;
-    const artifact = await (await api("v2/export", {request, record_exposure, scan_export})).json();
+    const artifact = await (await api("v2/export", {request, record_exposure, scan_export, provable_fields:provableFields})).json();
     if (policy !== request) throw new Error("The policy changed. Build a fresh plan.");
     const scan = artifact.leak_scan;
     if (scan) {
@@ -369,7 +405,7 @@ click("save-proof", () => save(new Blob([binary(result.zip_base64)], {type:"appl
 const navLinks = [...document.querySelectorAll("[data-view]")];
 function showView() {
   const hash = location.hash.slice(1);
-  const view = ["studio", "verify", "lab"].includes(hash) ? hash : "studio";
+  const view = ["studio", "verify", "lab", "zk"].includes(hash) ? hash : "studio";
   for (const link of navLinks) {
     const active = link.dataset.view === view;
     get("view-" + link.dataset.view).hidden = !active;
@@ -394,7 +430,7 @@ async function inspectDisclosure(zip, pdf, expected, forensic_ocr = false, demo 
   if (!zip.size || !pdf.size) throw new Error("Select a redacted PDF and proof ZIP in Verify.");
   if (zip.size > 48_000_000 || pdf.size > 36_000_000) throw new Error("The ZIP or PDF exceeds the upload limit.");
   const headers = {"X-LegitZK-Action":"1", "X-LegitZK-Zip-Length":String(zip.size), "X-LegitZK-Demo":demo, "X-LegitZK-OCR-Forensics":forensic_ocr && !demo ? "1" : "0"};
-  if (!demo && expected.size) {
+  if (!demo && expected?.size) {
     if (expected.size > 3072) throw new Error("Expected source receipt is too large.");
     const bytes = new Uint8Array(await expected.arrayBuffer());
     headers["X-LegitZK-Expected-Receipt"] = btoa(String.fromCharCode(...bytes));
@@ -760,4 +796,113 @@ revisionForm.addEventListener("submit", run(async () => {
 }, get("revision-apply")));
 click("revision-download", () => {
   if (workingCopy) save(workingCopy, "edited-test-copy.pdf");
+});
+
+let verifiedDisclosure;
+let disclosureRevision = 0;
+const zkOutput = (id, message) => { get(id).textContent = message; };
+function zkSubmit(id, output, handler) {
+  submit(get(id), async (event) => {
+    zkOutput(output, "Working…");
+    try { await handler(event.target); }
+    catch (error) { zkOutput(output, error.message); }
+  });
+}
+async function zkJson(file) {
+  if (!file?.size || file.size > 16_384) throw new Error("Choose a JSON file under 16 KB.");
+  return JSON.parse(await file.text());
+}
+function saveZkJson(value, name) {
+  save(new Blob([JSON.stringify(value, null, 2)], {type:"application/json"}), name);
+}
+function clearZkFields() {
+  disclosureRevision++;
+  verifiedDisclosure = undefined;
+  get("zk-fields").hidden = true;
+}
+get("zk-disclosure").addEventListener("input", () => {
+  clearZkFields();
+  zkOutput("zk-recipient-result", "");
+});
+const zkSelect = get("zk-request").elements.field;
+function showZkFormat() {
+  const field = verifiedDisclosure?.records[zkSelect.selectedIndex]?.field;
+  get("zk-format").textContent = field?.type === "date" ? "Use YYYY-MM-DD."
+    : field?.type === "amount" ? `Enter an amount in ${field.unit} with up to two decimal places.` : "Enter the code or text to match.";
+}
+zkSelect.addEventListener("change", showZkFormat);
+zkSubmit("zk-disclosure", "zk-recipient-result", async (form) => {
+  clearZkFields();
+  const version = disclosureRevision;
+  const {zip, pdf} = inputs(form);
+  const report = await inspectDisclosure(zip, pdf, null);
+  if (version !== disclosureRevision) return;
+  if (!report.valid) throw new Error(report.verification_error || "The disclosure could not be verified.");
+  if (!report.provable_fields?.length) throw new Error("This verified export has no registered fields.");
+  verifiedDisclosure = {records:report.provable_fields, issuer:report.field_issuer};
+  zkSelect.replaceChildren(...verifiedDisclosure.records.map(({field}) =>
+    new Option(`${field.label} · ${field.type}${field.unit ? " · " + field.unit : ""}`, field.id)));
+  showZkFormat();
+  get("zk-fields").hidden = false;
+  zkOutput("zk-recipient-result", "Disclosure verified. Choose a field to request a match.");
+});
+zkSubmit("zk-request", "zk-recipient-result", async (form) => {
+  const disclosure = verifiedDisclosure;
+  const record = disclosure?.records[zkSelect.selectedIndex];
+  if (!record) throw new Error("Load a verified disclosure first.");
+  const {candidate} = inputs(form);
+  const request = await (await api("v2/field-equality/request", {record, candidate, issuer:disclosure.issuer})).json();
+  if (disclosure !== verifiedDisclosure) return;
+  saveZkJson(request, "match-request.json");
+  zkOutput("zk-recipient-result", "Keep your request and send a copy to the document owner. It contains your candidate value.");
+});
+zkSubmit("zk-verify", "zk-recipient-result", async (form) => {
+  const disclosure = verifiedDisclosure;
+  if (!disclosure) throw new Error("Load a verified disclosure first.");
+  const files = inputs(form);
+  const [request, response] = await Promise.all([zkJson(files.request), zkJson(files.response)]);
+  const record = disclosure.records.find(item => item.field.id === request.field_id);
+  if (!record) throw new Error("The requested field is absent from this verified export.");
+  const checked = await (await api("v2/field-equality/verify",
+    {record, request, proof:response.proof, issuer:disclosure.issuer})).json();
+  if (disclosure !== verifiedDisclosure) return;
+  zkOutput("zk-recipient-result", checked.valid
+    ? `Verified match · ${record.field.label} · ${request.candidate}`
+    : "No verified match available.");
+});
+let reviewedRequest;
+const ownerForm = get("zk-owner");
+ownerForm.elements.request.addEventListener("change", async () => {
+  reviewedRequest = undefined;
+  ownerForm.elements.approved.checked = false;
+  zkOutput("zk-candidate", "");
+  zkOutput("zk-owner-result", "");
+  const file = ownerForm.elements.request.files[0];
+  if (!file) return;
+  try {
+    const request = await zkJson(file);
+    if (ownerForm.elements.request.files[0] !== file) return;
+    if (typeof request.candidate !== "string" || typeof request.field_id !== "string") {
+      throw new Error("Choose a valid match request.");
+    }
+    reviewedRequest = {file, request};
+    zkOutput("zk-candidate", `Field ID ${request.field_id} · Candidate ${request.candidate}`);
+  } catch (error) {
+    if (ownerForm.elements.request.files[0] === file) zkOutput("zk-owner-result", error.message);
+  }
+});
+zkSubmit("zk-owner", "zk-owner-result", async (form) => {
+  const reviewed = reviewedRequest;
+  if (!source || reviewed?.file !== form.elements.request.files[0] || !reviewed || !form.elements.approved.checked) {
+    throw new Error("Open the owner workspace and approve the displayed request.");
+  }
+  form.elements.approved.checked = false;
+  const response = await (await api("v2/field-equality/prove", {request:reviewed.request, approved:true})).json();
+  if (reviewed !== reviewedRequest) return;
+  if (!response.proof) {
+    zkOutput("zk-owner-result", "No verified match available.");
+    return;
+  }
+  saveZkJson(response, "match-proof.json");
+  zkOutput("zk-owner-result", "Match proof downloaded. Send the proof to the recipient.");
 });
