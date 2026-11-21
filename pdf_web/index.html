@@ -71,12 +71,13 @@
           <label class="check"><input id="record-exposure" type="checkbox"> Record this export locally</label>
         </details>
         <details id="field-registration" hidden>
-          <summary>Register fields for private matching</summary>
-          <p>Select a region that covers the entire value. Confirm the value against the original. The label, type, unit, and region are shared with the recipient.</p>
+          <summary>Register fields for private proofs</summary>
+          <p>Select a region that covers the entire value. Confirm the value against the original. The label, optional description, type, unit, and region are shared with the recipient.</p>
           <form id="register-field">
             <label>Hide region<select name="region" required></select></label>
             <label>Public label<input name="label" maxlength="80" required></label>
-            <label>Datatype<select name="type"><option value="amount">Amount (two decimal places)</option><option value="date">Date (YYYY-MM-DD)</option><option value="code">Code or text</option></select></label>
+            <label>Public description or aliases (optional)<input name="description" maxlength="120"></label>
+            <label>Datatype<select name="type"><option value="amount">Amount (two decimal places)</option><option value="integer">Whole number (e.g. age in years)</option><option value="date">Date (YYYY-MM-DD)</option><option value="code">Code or text</option></select></label>
             <label>Currency code for amounts<input name="unit" maxlength="3" placeholder="INR"></label>
             <label>Private value<input name="value" maxlength="128" required autocomplete="off"></label>
             <button type="submit">Add field</button>
@@ -178,39 +179,55 @@
     </section>
   </div>
   <div id="view-zk" class="view" hidden>
-    <div class="studio-heading"><div><h1>Zero Knowledge Proof</h1><p class="lead">Confirm an exact match to an owner-registered hidden field.</p></div></div>
+    <div class="studio-heading"><div><h1>Zero Knowledge Proof</h1><p class="lead">Prove a condition about an owner-attested hidden field.</p></div></div>
     <section class="card verifier">
-      <h2>Recipient</h2>
+      <h2>Verify a claim</h2>
+      <button id="zk-current" type="button">Use current Redact export</button>
       <form id="zk-disclosure">
         <label>Redacted PDF<input name="pdf" type="file" accept=".pdf" required></label>
         <label>Proof ZIP<input name="zip" type="file" accept=".zip" required></label>
         <button>Load verified fields</button>
       </form>
       <div id="zk-fields" hidden>
+        <form id="zk-question">
+          <label>Your question<textarea name="question" maxlength="300" required placeholder="Did checking finish the month with seven grand or more?"></textarea></label>
+          <button>Interpret question</button>
+        </form>
         <form id="zk-request">
           <label>Registered field<select name="field" required></select></label>
-          <p id="zk-format"></p>
-          <label>Candidate value<input name="candidate" maxlength="128" required autocomplete="off"></label>
-          <button>Download match request</button>
+          <label>Comparison<select name="operator" required>
+            <option value="eq">Equal to</option><option value="ge">At least</option>
+            <option value="gt">Greater than</option><option value="le">At most</option>
+            <option value="lt">Less than</option><option value="between">Between (inclusive)</option>
+          </select></label>
+          <label>Value or lower bound<input name="candidate" maxlength="128" required autocomplete="off"></label>
+          <label id="zk-upper" hidden>Upper bound<input name="upper" maxlength="128" autocomplete="off"></label>
+          <button>Review condition</button>
         </form>
-        <form id="zk-verify">
-          <label>Your retained match request<input name="request" type="file" accept=".json" required></label>
-          <label>Owner’s match proof<input name="response" type="file" accept=".json" required></label>
-          <button>Verify match proof</button>
-        </form>
+        <button id="zk-local" type="button" hidden>Prove and verify</button>
       </div>
       <p id="zk-recipient-result" role="status"></p>
-    </section>
-    <section class="card verifier">
-      <h2>Document owner</h2>
-      <p>Keep the original export workspace open. A verified match confirms the candidate exactly. Approve only values you intend to confirm.</p>
+      <details>
+      <summary>Exchange a proof with someone else</summary>
+      <button id="zk-download" type="button" hidden>Confirm and download request</button>
+      <h3>Verify a returned proof</h3>
+      <p>Load the matching PDF and ZIP above, then use your retained request and the owner’s response.</p>
+      <form id="zk-verify">
+        <label>Your retained request<input name="request" type="file" accept=".json" required></label>
+        <label>Owner’s proof<input name="response" type="file" accept=".json" required></label>
+        <button>Verify proof</button>
+      </form>
+      <p id="zk-verify-result" role="status"></p>
+      <h3>Respond as document owner</h3>
+      <p>Keep the original export workspace open. Approve only claims you intend to confirm. Several close thresholds can disclose the underlying value.</p>
       <form id="zk-owner">
-        <label>Recipient’s match request<input name="request" type="file" accept=".json" required></label>
+        <label>Recipient’s proof request<input name="request" type="file" accept=".json" required></label>
         <p id="zk-candidate"></p>
-        <label class="check"><input type="checkbox" name="approved" required> Approve a proof for the displayed candidate</label>
-        <button>Generate match proof</button>
+        <label class="check"><input type="checkbox" name="approved" required> Approve a proof for the displayed condition</label>
+        <button>Generate claim proof</button>
       </form>
       <p id="zk-owner-result" role="status"></p>
+      </details>
     </section>
   </div>
 </main>

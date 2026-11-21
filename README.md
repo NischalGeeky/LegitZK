@@ -20,27 +20,61 @@ The benchmark writes synthetic fixtures and [raw measurements](benchmarks/adapti
 
 The previous structured-contract demo remains available separately. Run `python app.py issuer@example.test` once to create its issuer, then start `python -m uvicorn app:app --host 127.0.0.1 --port 8000 --no-access-log`. Its sample inputs are in `fixtures/contract.json`. The previous project plan, literature review and benchmark notes describe that historical prototype.
 
-## Match a hidden field
+## Ask and verify a private claim
 
-In **Redact**, mark a hide region that covers the entire value and review the
-redaction plan. Open **Register fields for private matching**, select the hide
-region, and enter a safe public label, datatype, and private value confirmed
-against the original PDF. Add the field and generate the export. Keep this
-workspace open until you have answered the request. Private openings live in
-the owner process until the workspace expires, closes, or the server stops.
+Apply this patch over the version with the Zero Knowledge Proof tab. For
+plain-English interpretation, run this one-time setup from PowerShell in the
+project folder. Use the same Python environment that starts the app.
 
-In **Zero Knowledge Proof**, the recipient loads the redacted PDF and proof ZIP,
-selects a field, enters a candidate, and downloads a match request. Retain the
-request and send a copy to the owner privately. The request contains the
-candidate. The recipient's Studio must trust the issuer's public key obtained
-independently. The owner loads the request in the same tab, approves the displayed
-candidate, and returns the downloaded match proof. The recipient verifies the
-proof with the request they retained and the verified export they loaded.
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-nlp.txt
+.\.venv\Scripts\python.exe setup_claim_model.py
+.\start-windows.cmd
+```
 
-A match confirms the candidate against the owner-attested value. The proof
-checks a typed commitment associated with the signed receipt and exact PDF
-export. The owner checks the original text and region when registering the
-field. Amounts use two decimal places and a currency code. Dates use
-`YYYY-MM-DD`. Code and text matching normalize Unicode and ignore letter case.
-A missing proof provides no verified answer. Share only field labels and
-regions safe for the recipient to see, and approve candidates deliberately.
+The setup downloads approximately 300 MB of public FLAN-T5 Small base weights. The patch provides
+the fine-tuned adapter in `claim-model/`. The app loads both locally. Only the
+question and public field labels, descriptions, datatypes and currencies go to the model.
+You can enter a condition directly if model setup is unavailable.
+
+1. **Redact** the document and review the redaction plan. Open **Register fields
+   for private proofs**, select a hide region that covers the value, and enter a
+   descriptive label and its exact value from the original. Labels and regions
+   are public. Export and keep the owner's original workspace open. The
+   private openings expire with that workspace and are lost when the server stops.
+2. In **Ask what you want to verify**, load the redacted PDF and its matching ZIP.
+   Try “Did checking finish the month with seven grand or more?” or “Had the
+   patient turned 18 by the time of the visit?” after registering the relevant field.
+   Check or edit the interpretation, select **Review condition**, then confirm
+   and download `claim-request.json`. Keep a copy.
+3. In **Document owner**, upload the request, review and approve the exact
+   condition, then download `claim-proof.json` if a proof can be generated.
+   Share the proof with the recipient.
+4. In **Verify your request**, upload the retained request and owner proof.
+   The proof is checked against the signed field record and exact request. The
+   verifier must trust the signing key through the Studio trust configuration.
+   A missing proof leaves the condition unverified.
+
+New amount and whole-number commitments support equality, strict and inclusive
+thresholds, and inclusive ranges. Amounts use two decimal places and a signed
+32-bit range in cents. Dates and codes support equality. Earlier exports
+support equality, and must be regenerated to support numeric ranges. Use
+specific labels such as `Age at visit (years)` or `Resting pulse (bpm)`.
+Questions that require several fields or derived values need additional
+proof operations. A verified proof establishes a condition on the
+owner-attested value. The owner is responsible for checking transcription
+against the document and deciding which conditions to approve.
+
+To reproduce fine-tuning and its synthetic evaluation:
+
+```powershell
+python train_claim_model.py --output claim-model-initial --skip-evaluation
+python train_claim_model.py --resume claim-model-initial --steps 95
+```
+
+The training and evaluation sets use different
+field labels and phrasing templates. Evaluation counts full-claim matches and
+clarification responses. Run `python train_claim_model.py --evaluate-only` to
+evaluate the supplied adapter. Check the results in `claim-model/evaluation.json`.
+The translator is experimental. Review and correct its drafts before sending a request.
+

@@ -333,8 +333,8 @@ submit(get("policy"), async (event) => {
 submit(get("register-field"), (event) => {
   if (!policy || generating) throw new Error("Wait for the export to finish and review the plan.");
   if (provableFields.length >= 16) throw new Error("Register up to 16 fields per export.");
-  const {label, type, unit, value, region} = inputs(event.target);
-  const field = {label, type, unit: unit.trim().toUpperCase(), value, region: policy.hide[Number(region)]};
+  const {label, description, type, unit, value, region} = inputs(event.target);
+  const field = {label, description: description.trim(), type, unit: unit.trim().toUpperCase(), value, region: policy.hide[Number(region)]};
   provableFields.push(field);
   const row = document.createElement("li");
   const remove = document.createElement("button");
@@ -809,7 +809,7 @@ function zkSubmit(id, output, handler) {
   });
 }
 async function zkJson(file) {
-  if (!file?.size || file.size > 16_384) throw new Error("Choose a JSON file under 16 KB.");
+  if (!file?.size || file.size > 48_000) throw new Error("Choose a JSON file under 48 KB.");
   return JSON.parse(await file.text());
 }
 function saveZkJson(value, name) {
@@ -819,56 +819,142 @@ function clearZkFields() {
   disclosureRevision++;
   verifiedDisclosure = undefined;
   get("zk-fields").hidden = true;
+  clearZkDraft();
+  zkOutput("zk-verify-result", "");
 }
 get("zk-disclosure").addEventListener("input", () => {
   clearZkFields();
   zkOutput("zk-recipient-result", "");
 });
-const zkSelect = get("zk-request").elements.field;
-function showZkFormat() {
-  const field = verifiedDisclosure?.records[zkSelect.selectedIndex]?.field;
-  get("zk-format").textContent = field?.type === "date" ? "Use YYYY-MM-DD."
-    : field?.type === "amount" ? `Enter an amount in ${field.unit} with up to two decimal places.` : "Enter the code or text to match.";
+const zkForm = get("zk-request");
+const zkSelect = zkForm.elements.field;
+let draftRequest;
+let draftRevision = 0;
+function clearZkDraft() {
+  draftRevision++;
+  draftRequest = undefined;
+  get("zk-download").hidden = true;
+  get("zk-local").hidden = true;
 }
-zkSelect.addEventListener("change", showZkFormat);
-zkSubmit("zk-disclosure", "zk-recipient-result", async (form) => {
+function updateZkOperators() {
+  const field = verifiedDisclosure?.records[zkSelect.selectedIndex]?.field;
+  const operator = zkForm.elements.operator;
+  for (const option of operator.options) {
+    option.disabled = option.value !== "eq" && field?.encoding !== "bounded-integer";
+  }
+  if (operator.selectedOptions[0]?.disabled) operator.value = "eq";
+  const upper = operator.value === "between";
+  get("zk-upper").hidden = !upper;
+  zkForm.elements.upper.required = upper;
+}
+zkForm.addEventListener("input", () => {
+  clearZkDraft();
+  updateZkOperators();
+});
+get("zk-question").addEventListener("input", clearZkDraft);
+async function loadZkDisclosure(zip, pdf, workspace) {
   clearZkFields();
   const version = disclosureRevision;
-  const {zip, pdf} = inputs(form);
   const report = await inspectDisclosure(zip, pdf, null);
   if (version !== disclosureRevision) return;
-  if (!report.valid) throw new Error(report.verification_error || "The disclosure could not be verified.");
+  if (!report.valid) throw new Error(report.verification_error || "The disclosure could not be verified. Check the PDF and ZIP in Verify.");
   if (!report.provable_fields?.length) throw new Error("This verified export has no registered fields.");
-  verifiedDisclosure = {records:report.provable_fields, issuer:report.field_issuer};
+  verifiedDisclosure = {records:report.provable_fields, issuer:report.field_issuer, workspace};
   zkSelect.replaceChildren(...verifiedDisclosure.records.map(({field}) =>
     new Option(`${field.label} · ${field.type}${field.unit ? " · " + field.unit : ""}`, field.id)));
-  showZkFormat();
+  updateZkOperators();
   get("zk-fields").hidden = false;
-  zkOutput("zk-recipient-result", "Disclosure verified. Choose a field to request a match.");
+  zkOutput("zk-recipient-result", "Disclosure verified. Ask a question or enter a condition directly.");
+}
+zkSubmit("zk-disclosure", "zk-recipient-result", async (form) => {
+  const {zip, pdf} = inputs(form);
+  await loadZkDisclosure(zip, pdf);
+});
+click("zk-current", async () => {
+  try {
+    if (!source || !result) throw new Error("Register a field and generate a Redact export first.");
+    const workspace = source.workspace;
+    zkOutput("zk-recipient-result", "Loading current export…");
+    await loadZkDisclosure(new Blob([binary(result.zip_base64)]), new Blob([binary(result.pdf_base64)]), workspace);
+  } catch (error) {
+    zkOutput("zk-recipient-result", error.message);
+  }
+});
+async function zkApi(action, payload, workspace) {
+  return (await api("v2/field-claim/" + action, payload, workspace)).json();
+}
+zkSubmit("zk-question", "zk-recipient-result", async (form) => {
+  clearZkDraft();
+  const version = draftRevision;
+  const disclosure = verifiedDisclosure;
+  if (!disclosure) throw new Error("Load a verified disclosure first.");
+  const {question} = inputs(form);
+  const proposal = await zkApi("interpret", {question, records:disclosure.records, issuer:disclosure.issuer});
+  if (version !== draftRevision) return;
+  zkSelect.value = proposal.field_id;
+  zkForm.elements.operator.value = proposal.operator;
+  zkForm.elements.candidate.value = proposal.values[0];
+  zkForm.elements.upper.value = proposal.values[1] ?? "";
+  updateZkOperators();
+  zkOutput("zk-recipient-result", "Check the proposed field, comparison and values, then select Review condition.");
 });
 zkSubmit("zk-request", "zk-recipient-result", async (form) => {
+  clearZkDraft();
+  const version = draftRevision;
   const disclosure = verifiedDisclosure;
   const record = disclosure?.records[zkSelect.selectedIndex];
   if (!record) throw new Error("Load a verified disclosure first.");
-  const {candidate} = inputs(form);
-  const request = await (await api("v2/field-equality/request", {record, candidate, issuer:disclosure.issuer})).json();
-  if (disclosure !== verifiedDisclosure) return;
-  saveZkJson(request, "match-request.json");
-  zkOutput("zk-recipient-result", "Keep your request and send a copy to the document owner. It contains your candidate value.");
+  const {operator, candidate, upper} = inputs(form);
+  const values = operator === "between" ? [candidate, upper] : [candidate];
+  const draft = await zkApi("request", {record, issuer:disclosure.issuer, operator, values});
+  if (version !== draftRevision) return;
+  draftRequest = draft.request;
+  zkOutput("zk-recipient-result", draft.claim);
+  get("zk-download").hidden = false;
+  get("zk-local").hidden = !source || (disclosure.workspace && disclosure.workspace !== source.workspace);
 });
-zkSubmit("zk-verify", "zk-recipient-result", async (form) => {
+click("zk-local", async () => {
+  const request = draftRequest;
+  const disclosure = verifiedDisclosure;
+  const workspace = source?.workspace;
+  const version = draftRevision;
+  const record = disclosure?.records.find(item => item.field.id === request?.field_id);
+  if (!record || !workspace || (disclosure.workspace && disclosure.workspace !== workspace)) {
+    zkOutput("zk-recipient-result", "Open the original Redact workspace for this export.");
+    return;
+  }
+  try {
+    zkOutput("zk-recipient-result", "Generating and verifying the proof…");
+    const response = await zkApi("prove", {request, approved:true}, workspace);
+    if (version !== draftRevision || source?.workspace !== workspace) return;
+    if (!response.proof) {
+      zkOutput("zk-recipient-result", "No proof was generated for this condition.");
+      return;
+    }
+    const checked = await zkApi("verify", {record, request, proof:response.proof, issuer:disclosure.issuer});
+    if (version !== draftRevision || source?.workspace !== workspace) return;
+    zkOutput("zk-recipient-result", checked.valid ? `Proven · ${checked.claim}` : "Unverified condition.");
+  } catch (error) {
+    if (version === draftRevision && source?.workspace === workspace) zkOutput("zk-recipient-result", error.message);
+  }
+});
+click("zk-download", () => {
+  if (!draftRequest) return;
+  saveZkJson(draftRequest, "claim-request.json");
+  zkOutput("zk-recipient-result", "Keep your request and send a copy to the document owner.");
+});
+zkSubmit("zk-verify", "zk-verify-result", async (form) => {
   const disclosure = verifiedDisclosure;
   if (!disclosure) throw new Error("Load a verified disclosure first.");
   const files = inputs(form);
   const [request, response] = await Promise.all([zkJson(files.request), zkJson(files.response)]);
   const record = disclosure.records.find(item => item.field.id === request.field_id);
   if (!record) throw new Error("The requested field is absent from this verified export.");
-  const checked = await (await api("v2/field-equality/verify",
-    {record, request, proof:response.proof, issuer:disclosure.issuer})).json();
+  const checked = await zkApi("verify", {record, request, proof:response.proof, issuer:disclosure.issuer});
   if (disclosure !== verifiedDisclosure) return;
-  zkOutput("zk-recipient-result", checked.valid
-    ? `Verified match · ${record.field.label} · ${request.candidate}`
-    : "No verified match available.");
+  zkOutput("zk-verify-result", checked.valid
+    ? `Proven for the attested field · ${checked.claim} · Signing key ${disclosure.issuer}`
+    : "Unverified condition.");
 });
 let reviewedRequest;
 const ownerForm = get("zk-owner");
@@ -882,11 +968,10 @@ ownerForm.elements.request.addEventListener("change", async () => {
   try {
     const request = await zkJson(file);
     if (ownerForm.elements.request.files[0] !== file) return;
-    if (typeof request.candidate !== "string" || typeof request.field_id !== "string") {
-      throw new Error("Choose a valid match request.");
-    }
+    const review = await zkApi("review", request);
+    if (ownerForm.elements.request.files[0] !== file) return;
     reviewedRequest = {file, request};
-    zkOutput("zk-candidate", `Field ID ${request.field_id} · Candidate ${request.candidate}`);
+    zkOutput("zk-candidate", review.claim);
   } catch (error) {
     if (ownerForm.elements.request.files[0] === file) zkOutput("zk-owner-result", error.message);
   }
@@ -897,12 +982,12 @@ zkSubmit("zk-owner", "zk-owner-result", async (form) => {
     throw new Error("Open the owner workspace and approve the displayed request.");
   }
   form.elements.approved.checked = false;
-  const response = await (await api("v2/field-equality/prove", {request:reviewed.request, approved:true})).json();
+  const response = await zkApi("prove", {request:reviewed.request, approved:true});
   if (reviewed !== reviewedRequest) return;
   if (!response.proof) {
-    zkOutput("zk-owner-result", "No verified match available.");
+    zkOutput("zk-owner-result", "No proof was generated.");
     return;
   }
-  saveZkJson(response, "match-proof.json");
-  zkOutput("zk-owner-result", "Match proof downloaded. Send the proof to the recipient.");
+  saveZkJson(response, "claim-proof.json");
+  zkOutput("zk-owner-result", "Claim proof downloaded. Send the proof to the recipient.");
 });

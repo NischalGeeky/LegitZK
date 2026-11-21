@@ -31,6 +31,8 @@ import forensic_review
 import revision_test
 import privacy_review
 import field_equality
+import field_claim
+import claim_nlp
 from exposure import ExposureHistory
 import pdf_redaction as core
 from protocol import canonical, parse_json, shape, valid_hex
@@ -465,6 +467,95 @@ async def inspect(req: Request):
     if ocr not in ("0", "1"):
         raise ValueError("Invalid forensic OCR option.")
     return await run_in_threadpool(inspect_bundle, raw[:size], raw[size:], demo, expected, ocr == "1")
+
+
+def claim_record(record, issuer):
+    if not isinstance(issuer, str) or issuer not in app.state.trusted_keys:
+        raise ValueError("The field issuer is not trusted.")
+    return field_equality.check_record(record, issuer)
+
+
+@app.post("/api/v2/field-claim/interpret")
+async def interpret_field_claim(req: Request):
+    data = parse_json(await read(req, 65_536))
+    shape(data, ("records", "issuer", "question"))
+    records = data["records"]
+    if not isinstance(records, list) or not 1 <= len(records) <= field_equality.MAX_FIELDS:
+        raise ValueError("Load a verified disclosure with registered fields.")
+    fields = [claim_record(record, data["issuer"]) for record in records]
+    field_id, operator, values = await run_in_threadpool(claim_nlp.interpret, data["question"], fields)
+    field = next(item for item in fields if item["id"] == field_id)
+    claim_nlp.check_currency(data["question"], field)
+    field_claim.condition(field, operator, values)
+    claim_nlp.check_thresholds(data["question"], field, values)
+    return {"field_id": field_id, "operator": operator, "values": values}
+
+
+@app.post("/api/v2/field-claim/request")
+async def request_field_claim(req: Request):
+    data = parse_json(await read(req, 16_384))
+    shape(data, ("record", "issuer", "operator", "values"))
+    field = claim_record(data["record"], data["issuer"])
+    request = {"field_id": field["id"], "record_sha256": bundle.digest(canonical(data["record"])),
+               "nonce": token_hex(32), "operator": data["operator"], "values": data["values"]}
+    label = field_claim.check(data["record"], request)
+    if request["operator"] != "eq":
+        field_claim.interval(data["record"], request)
+    return {"request": request, "claim": label}
+
+
+def claim_witness(req, request):
+    predicates = ("operator", "values")
+    if isinstance(request, dict) and "candidate" in request:
+        predicates = ("candidate",)
+    shape(request, ("field_id", "record_sha256", "nonce", *predicates))
+    valid_hex(request["field_id"], 16)
+    with LOCK:
+        prune()
+        entry = WORKSPACES.get(req.headers.get("x-legitzk-workspace"))
+        witness = entry[2].get(request["field_id"]) if entry else None
+    if witness is None:
+        raise ValueError("The private field is unavailable. Keep the original export workspace open.")
+    return witness
+
+
+@app.post("/api/v2/field-claim/review")
+async def review_field_claim(req: Request):
+    request = parse_json(await read(req, 16_384))
+    witness = claim_witness(req, request)
+    record = witness[0]
+    if "candidate" in request:
+        field_equality.check_request(request, record)
+        return {"claim": field_claim.condition(record["field"], "eq", [request["candidate"]])}
+    return {"claim": field_claim.check(record, request)}
+
+
+@app.post("/api/v2/field-claim/prove")
+async def prove_field_claim(req: Request):
+    data = parse_json(await read(req, 16_384))
+    shape(data, ("request", "approved"))
+    if data["approved"] is not True:
+        raise ValueError("Approve the displayed claim before generating a proof.")
+    witness = claim_witness(req, data["request"])
+    prove = field_equality.prove if "candidate" in data["request"] else field_claim.prove
+    return {"proof": await run_in_threadpool(prove, witness, data["request"])}
+
+
+@app.post("/api/v2/field-claim/verify")
+async def verify_field_claim(req: Request):
+    data = parse_json(await read(req, 48_000))
+    shape(data, ("record", "issuer", "request", "proof"))
+    claim_record(data["record"], data["issuer"])
+    record, request = data["record"], data["request"]
+    if isinstance(request, dict) and "candidate" in request:
+        field_equality.check_request(request, record)
+        label = field_claim.condition(record["field"], "eq", [request["candidate"]])
+        verify = field_equality.verify
+    else:
+        label = field_claim.check(record, request)
+        verify = field_claim.verify
+    valid = await run_in_threadpool(verify, record, request, data["proof"])
+    return {"valid": valid, "claim": label}
 
 
 @app.post("/api/v2/field-equality/request")

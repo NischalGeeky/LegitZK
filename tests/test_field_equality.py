@@ -61,6 +61,28 @@ class FieldEqualityTests(TestCase):
                 swapped = client.post(root + "verify", headers=action, json=dict(
                     verification, record=dict(record, field=dict(record["field"], pdf_sha256="00" * 32))))
                 self.assertEqual(swapped.status_code, 400)
+                claims = "/api/v2/field-claim/"
+                with patch("claim_nlp.interpret", return_value=(record["field"]["id"], "ge", ["40000"])):
+                    parsed = client.post(claims + "interpret", headers=action, json={
+                        "records": [record], "issuer": issuer, "question": "Was it at least forty thousand?"})
+                self.assertEqual(parsed.status_code, 200, parsed.text)
+                draft = client.post(claims + "request", headers=action, json={
+                    "record": record, "issuer": issuer, "operator": parsed.json()["operator"],
+                    "values": parsed.json()["values"]})
+                self.assertEqual(draft.status_code, 200, draft.text)
+                claim_request = draft.json()["request"]
+                self.assertEqual(client.post(claims + "review", headers=owner,
+                                             json=claim_request).json()["claim"], draft.json()["claim"])
+                response = client.post(claims + "prove", headers=owner,
+                                       json={"request": claim_request, "approved": True})
+                self.assertEqual(response.status_code, 200, response.text)
+                claim_verification = {"record": record, "issuer": issuer, "request": claim_request,
+                                      "proof": response.json()["proof"]}
+                self.assertTrue(client.post(claims + "verify", headers=action,
+                                            json=claim_verification).json()["valid"])
+                changed = dict(claim_request, operator="gt")
+                self.assertFalse(client.post(claims + "verify", headers=action,
+                                             json=dict(claim_verification, request=changed)).json()["valid"])
                 client.post("/api/close", headers=owner)
                 self.assertEqual(client.post(root + "prove", headers=owner,
                                              json={"request": request, "approved": True}).status_code, 400)

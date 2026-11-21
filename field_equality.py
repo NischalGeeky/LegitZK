@@ -12,9 +12,11 @@ from pdf_redaction import absorb, framed
 from protocol import canonical, shape, valid_hex
 import rangeproof as group
 
-TYPES = ("amount", "date", "code")
+TYPES = ("amount", "date", "code", "integer")
 DOMAIN = "LegitZK/pdf/field-equality/v1"
 MAX_FIELDS = 16
+OFFSET = 2**31
+NUMERIC = ("amount", "integer")
 
 
 def typed(value, kind, unit):
@@ -35,14 +37,21 @@ def typed(value, kind, unit):
         return str((-1 if negative else 1) * (int(whole) * 100 + int(fraction.ljust(2, "0"))))
     if unit != "":
         raise ValueError("Only amount fields take a currency code.")
+    if kind == "integer" and re.fullmatch(r"[+-]?[0-9]+", value):
+        return str(int(value))
     if kind == "date" and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
         return date.fromisoformat(value).isoformat()
     if kind == "code" and value and value.isprintable():
         return value.upper()
-    raise ValueError("Use YYYY-MM-DD for dates or a nonempty printable code.")
+    raise ValueError("Use a whole number for integers, YYYY-MM-DD for dates, or a nonempty printable code.")
 
 
 def message(field, value):
+    if field.get("encoding") == "bounded-integer":
+        number = int(typed(value, field["type"], field["unit"]))
+        if not -OFFSET <= number < OFFSET:
+            raise ValueError("Number exceeds the supported 32-bit range (cents for amounts).")
+        return number + OFFSET
     return absorb(DOMAIN.encode() + b"/value", canonical([
         field["id"], field["type"], field["unit"], typed(value, field["type"], field["unit"])
     ]))
@@ -53,7 +62,11 @@ def issue(items, receipt, request, pdf_hash, signer):
         raise ValueError("Register up to 16 fields per export.")
     records, witnesses = [], {}
     for item in items:
-        shape(item, ("label", "type", "unit", "value", "region"))
+        keys = ("label", "type", "unit", "value", "region")
+        shape(item, (*keys, "description") if isinstance(item, dict) and "description" in item else keys)
+        description = item.get("description", "")
+        if not isinstance(description, str) or len(description) > 120 or (description and not description.isprintable()):
+            raise ValueError("Use a public description of up to 120 printable characters.")
         label = item["label"]
         if not isinstance(label, str) or not 1 <= len(label.strip()) <= 80 or not label.strip().isprintable():
             raise ValueError("Enter a public field label of up to 80 printable characters.")
@@ -64,6 +77,10 @@ def issue(items, receipt, request, pdf_hash, signer):
             "region": item["region"], "receipt_sha256": sha256(canonical(receipt)).hexdigest(),
             "pdf_sha256": pdf_hash,
         }
+        if description.strip():
+            field["description"] = description.strip()
+        if field["type"] in NUMERIC:
+            field["encoding"] = "bounded-integer"
         value = message(field, item["value"])
         blind = randbelow(group.ORDER - 1) + 1
         field["commitment"] = group.commit(value, blind).hex()
@@ -76,7 +93,15 @@ def issue(items, receipt, request, pdf_hash, signer):
 def check_record(record, trusted_key):
     shape(record, ("field", "signature"))
     field = record["field"]
-    shape(field, ("id", "label", "type", "unit", "region", "receipt_sha256", "pdf_sha256", "commitment"))
+    keys = ("id", "label", "type", "unit", "region", "receipt_sha256", "pdf_sha256", "commitment")
+    if "description" in field:
+        keys = (*keys, "description")
+    if "encoding" in field:
+        shape(field, (*keys, "encoding"))
+        if field["encoding"] != "bounded-integer" or field["type"] not in NUMERIC:
+            raise ValueError("Unknown numeric encoding.")
+    else:
+        shape(field, keys)
     if field["type"] not in TYPES:
         raise ValueError("Unknown field datatype.")
     valid_hex(field["id"], 16)
