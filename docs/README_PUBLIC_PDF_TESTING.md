@@ -44,6 +44,12 @@ Adaptive kept the same fine-grid mask while verifying faster and sending less ev
 
 The target test counts all seeded standard sensitive fields, including omissions by candidate extraction. A suggestion had to overlap more than 70% of a target box to count as a hit. The held-out synthetic wording still shares vocabulary with the tiny training corpus. Repeated pages repeat the same label layouts. These are coverage counts on this fixture, with no claim of generalization rates on real legal documents. Custom search found three additional settlement fields outside the standard-category test. Local OCR also found a labeled account number in a separate image-only smoke test.
 
-## Verification and known gaps
+## Included model evaluation
 
-27 Python tests passed, including the original v1 suite, adaptive API round trip, protected and budget conflicts, changed source commitments, recomputed transcript for changed visible pixels, changed request and exact PDF mismatch. JavaScript syntax and dependency consistency checks passed. Chromium launch was blocked by the execution environment before browser interaction, and native Windows was not available for execution. Use the documented Windows workflow for a local walkthrough. The custom proof and local PDF parser are research code and need independent review before high-stakes use.
+The archived [adapter evaluation](../claim-model/evaluation.json) records 41 exact structured-condition matches from 78 answerable cases and 0 correct clarification responses from 18 cases. These are held-out synthetic templates and labels, with no claim about real-document accuracy. The result supports retaining human review and the manual comparison controls.
+
+With the [optional NLP dependencies](../README_PDF_STUDIO.md#optional-local-tools) installed, run `python train_claim_model.py --evaluate-only`. Reproduction of the two training stages uses `python train_claim_model.py --output claim-model-initial --skip-evaluation` followed by `python train_claim_model.py --resume claim-model-initial --steps 95`. Training can write a new adapter to the default output directory. Use `--output` to preserve the supplied adapter.
+
+## Checks for this archive
+
+The [delivery report](delivery.md) lists the current validation. The public PDF corpus above is a test plan. The included performance and detection measurements are historical synthetic runs.

@@ -2,7 +2,7 @@
 
 ## The statement
 
-Given a trusted ingestion receipt, an expected request and the redacted PDF, the verifier checks that every visible tile matches its committed source, all required hidden tiles are black, protected regions stay visible, budgets hold and the received PDF equals the canonical image-only export.
+Given a signed ingestion receipt, a redaction request and the redacted PDF, the verifier checks that every visible tile matches its committed source, all required hidden tiles are black, protected regions stay visible, budgets hold and the received PDF equals the canonical image-only export.
 
 ## Ingestion and authenticated tiles
 
@@ -12,7 +12,7 @@ The ingester renders pages, enumerates their 32→16→8 quadtrees in fixed dept
 
 A Merkle leaf hashes its deterministic index and commitment. Internal Merkle hashes have a separate domain from leaves. The signed source receipt pins the Merkle root, source PDF hash, raster profile, dimensions and randomly generated source ID. A single multi-resolution receipt can be used for multiple disclosure requests.
 
-The recipient retains an approved request. Sender and verifier independently recompute the same canonical adaptive cut. The sender presents the commitments selected by the cut and a Merkle multiproof. The verifier recomputes the indices and requires the correct number of sibling hashes at each level. Unselected tile commitments and their openings are unnecessary for verification.
+The Studio verifies the bundled request. An independently retained source receipt can additionally pin the expected ingestion. Sender and verifier independently recompute the same canonical adaptive cut. The sender presents the commitments selected by the cut and a Merkle multiproof. The verifier recomputes the indices and requires the correct number of sibling hashes at each level. Unselected tile commitments and their openings are unnecessary for verification.
 
 ## Two Schnorr relations
 
@@ -36,4 +36,12 @@ Fresh randomness hides the witness openings. In the idealized Schnorr simulation
 
 The hidden relation demonstrates knowledge of an aggregate opening to tile digests. It does not prove possession of every raw hidden tile in an independent PDF renderer. Source-to-raster association relies on the trusted local signature. The policy constraints, signature, Merkle membership, blacking-out and exact PDF bytes are deterministic verifier checks alongside the Schnorr proof. AI output is neither an authenticity signal nor evidence that every sensitive field was found. The custom protocol and ingestion path have not received independent security review.
 
-For a presentation, show the visible equation first and the [proof tampering demo](README_WORKFLOW.md) second.
+For a presentation, show the visible equation first and the [changed-export demonstration](README_WORKFLOW.md) second.
+
+## Owner-attested field proofs
+
+The field workflow is separate from the tile proof. The owner enters the private value when registering a hide region. The Studio signs the public field record, including the field ID, label, datatype, unit, region, source-receipt digest, exact export digest and commitment. The opening stays in the active owner workspace. Matching the typed value to the original text is the owner's responsibility.
+
+Amounts are encoded as signed 32-bit minor-unit integers offset by 2³¹. Whole numbers use the same offset without currency scaling. Equality uses an opening proof with the supplied candidate. For a requested encoded interval [L, U], the verifier checks bit proofs against C − LG and UG − C. This establishes that both differences are nonnegative within the supported encoding. The transcript binds the request and the signed record. Dates and code/text support equality. Equality can confirm the candidate itself, while threshold results reveal the corresponding fact about the value. Multiple results can narrow down a private value.
+
+A successful proof authenticates the condition on the owner-attested commitment. The local Studio signing key gives the attestation its provenance. It carries no external bank or clinical issuer authority. **Interpret question** only proposes a condition. **Review condition** displays that condition for approval before proof generation.

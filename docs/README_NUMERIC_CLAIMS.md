@@ -1,4 +1,6 @@
-# Private numeric claims
+# Issuer-backed numeric claims CLI
+
+This is the separate structured-credential tool. For owner-attested fields from the main PDF Studio, follow the [Studio walkthrough](README_WORKFLOW.md#prove-a-private-claim).
 
 LegitZK signs commitments to named, unit-tagged unsigned 32-bit integers. Applications can choose attribute and unit identifiers independently of document type. A policy is an ordered conjunction of inclusive ranges, potentially over credentials from multiple issuers. A lower or upper bound is a range with one endpoint at the domain limit. A singleton range verifies an exact value and makes that value public.
 
@@ -42,7 +44,7 @@ The verifier can generate the nonce with `.\.venv\Scripts\python.exe -c "import 
 .\.venv\Scripts\python.exe claims_cli.py review next-policy.json trust.json presentation.json
 ```
 
-The Verify tab also accepts the public presentation, independently retained policy, and trusted public keys. Review computes the intersection of a proposed policy with valid, unexpired presentations supplied for the same audience. A singleton intersection exposes an exact value if the proposed policy also holds. The report covers the supplied history and public interval constraints.
+Use the CLI to verify the public presentation against an independently retained policy and trusted public keys. Review computes the intersection of a proposed policy with valid, unexpired presentations supplied for the same audience. A singleton intersection exposes an exact value if the proposed policy also holds. The report covers the supplied history and public interval constraints.
 
 ## Proof and trust model
 
@@ -52,4 +54,4 @@ Presentations reveal issuer names, attribute names, units, public ranges, creden
 
 This is an unaudited extension of the existing range-proof implementation. It does not implement standardized credential envelopes, credential revocation, arbitrary field relationships, cross-credential holder equality, selective hiding of credential metadata or unlinkable presentations.
 
-To reproduce the claim benchmark, run `python benchmarks/claims.py --clauses 1 2 4 --trials 10`. See [measurements](../benchmarks/claims-results.json) for raw samples. This benchmark isolates numeric proof generation and verification under one issuer.
+To reproduce the claim benchmark, run `python -m benchmarks.claims --clauses 1 2 4 --trials 10`. See [measurements](../benchmarks/claims-results.json) for raw samples. This benchmark isolates numeric proof generation and verification under one issuer.

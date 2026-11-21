@@ -1,5 +1,7 @@
 # Evaluating transcript binding for privacy-preserving vendor contract disclosure
 
+This draft reports the earlier structured-contract experiment. The [PDF Studio evaluation](README_PUBLIC_PDF_TESTING.md) covers the current adaptive-document workflow.
+
 **Working paper — LegitZK Research Prototype**
 
 ## Abstract

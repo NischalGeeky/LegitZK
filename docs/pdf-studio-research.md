@@ -1,5 +1,7 @@
 # Policy-bound redaction of committed PDF rasters
 
+These research notes describe the fixed-grid predecessor. The current [adaptive proof design](README_ZERO_KNOWLEDGE.md) uses a multi-resolution commitment and a selected quadtree cut.
+
 ## Research contribution and prior art
 
 The candidate systems contribution is an evaluated workflow for ordinary PDFs that combines a verifier-retained redaction budget, mandatory visible regions and a request-bound proof over committed page tiles. The verifiable claim is intentionally narrow. For the selected raster profile, the disclosed output preserves all pixels outside the mask, every masked tile is black, and the mask obeys the exact independently retained request. The experiment tests whether a two-aggregate proof keeps the proof itself compact while preserving enforceable policy checks. It does not establish a previously unknown cryptographic primitive or publication-level novelty.

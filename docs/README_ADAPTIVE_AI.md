@@ -28,3 +28,7 @@ Every compatible cut must hide the forced 8-pixel cells, so this mask minimizes 
 The evaluated contribution is an authenticated, verifier-reconstructable adaptive layout for post-ingestion hide/keep policies. It preserves the fine-grid minimum-loss mask while reducing the number of authenticated tiles and the size of evidence in the measured layouts. The pre-commitment inventory uses more tiles than the selected cut, so lower verification cost comes with an up-front ingestion trade-off. AI is evaluated separately from the planner against an identical field extraction stage. Neither a new cryptographic primitive nor a worldwide novelty claim is established.
 
 See the [proof design](README_ZERO_KNOWLEDGE.md) and [measured results](README_PUBLIC_PDF_TESTING.md). For earlier related work see [the original raster research notes](pdf-studio-research.md), which describe the fixed-grid predecessor.
+
+## Optional question interpretation
+
+The Zero Knowledge Proof tab has a separate FLAN-T5 Small adapter for interpreting a user's question and public field metadata. It proposes a single-field comparison. Current UI flow is **Interpret question → Review condition → Prove and verify** for a current local export. The proof verifier checks the selected condition independently of the model. See the [setup guide](../README_PDF_STUDIO.md#optional-local-tools) and [evaluation](README_PUBLIC_PDF_TESTING.md).

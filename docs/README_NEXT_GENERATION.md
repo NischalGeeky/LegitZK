@@ -1,10 +1,10 @@
-# Next-generation implementation status
+# Cumulative disclosure review
 
-## Cumulative disclosure review
+## Using the exposure panel
 
 Upload a supported PDF, select hide regions, and review the redaction plan. Enable **Record this export locally** before generating the first proof and PDF. Select different regions on the same source while retaining the same recipient label and review the new plan. The cumulative exposure panel reports how many pixels hidden in the proposal were visible in recorded exports. You can change the mask and check again before exporting.
 
-The analysis is exact for the actual raster masks. If (H_i) is the hidden pixel set for export (i), the hidden set after combining all exports is (igcap_i H_i). For a proposed hidden set (H), the previously exposed region inside the proposal is (H setminus igcap_i H_i). This is a geometric calculation, independent of the cryptographic proof and the detector's field classification.
+The analysis is exact for the actual raster masks. If Hᵢ is the hidden pixel set for export i, the hidden set after combining releases is the intersection of all Hᵢ. The previously exposed portion of a proposed mask H is H minus that intersection. This is a geometric calculation, independent of the cryptographic proof and the detector's field classification.
 
 ## Scope and threat model
 
@@ -18,7 +18,7 @@ Run from the Studio directory.
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests
-.\.venv\Scripts\python.exe benchmarks/exposure.py --trials 25 --sizes 256 1024 2048
+.\.venv\Scripts\python.exe -m benchmarks.exposure --trials 25 --sizes 256 1024 2048
 ```
 
 The benchmark measures local preview analysis for a deterministic two-mask case. It checks the exact intersection against a known geometric result and reports every timing sample plus runtime and package versions. See [raw results](../benchmarks/exposure-results.json). It does not measure PDF parsing, proof generation, OCR or concurrent serving.
@@ -27,6 +27,6 @@ SD-JWT is a standards-track selective-disclosure mechanism and provides a compar
 
 ## Current capability boundary
 
-Existing Studio functionality includes local extraction and field suggestions, proof-backed redacted PDFs, signed bundle validation, expected-source matching and visual forensics. Existing threshold proofs in the separate contract workflow establish a narrowly defined numeric predicate. Cumulative raster assessment and benchmark tooling are available. [Private numeric claims](README_NUMERIC_CLAIMS.md) adds issuer-backed numeric credentials, conjunctive range proofs across issuers, and cumulative numeric interval review. General hidden predicates, cross-credential relations, interoperability and revocation, semantic leakage simulation, natural-language policy building, collaborative approvals, tenant isolation, a hosted vault, an interactive exposure graph and the full developer platform remain unimplemented.
+Existing Studio functionality includes local extraction and field suggestions, proof-backed redacted PDFs, signed bundle validation, expected-source matching and visual forensics. Existing threshold proofs in the separate contract workflow establish a narrowly defined numeric predicate. Cumulative raster assessment and benchmark tooling are available. [Private numeric claims](README_NUMERIC_CLAIMS.md) adds issuer-backed numeric credentials, conjunctive range proofs across issuers, and cumulative numeric interval review. The Studio supports optional interpretation of single-field questions and a limited age/date inference check. General hidden predicates, cross-credential relations, interoperability and revocation, general semantic leakage simulation, unrestricted natural-language policy building, collaborative approvals, tenant isolation, a hosted vault, an interactive exposure graph and the full developer platform remain unimplemented.
 
 PDF verification can export a versioned JSON inspection report with input digests, the signed file checks, source-match result when supplied, and visual comparison summary when available. The report omits page preview images and is an unsigned record of the inspection. Re-run verification with the original inputs to reproduce its findings.

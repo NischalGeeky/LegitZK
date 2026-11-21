@@ -1,38 +1,22 @@
-# Source investigation and Proof Studio
+# Investigate a PDF revision
 
-## Launch on Windows
+## Compare a candidate with a signed baseline
 
-Extract to a fresh folder. Place the official x64 `libsodium.dll` next to `rangeproof.py`. With Python 3.12 installed, run `start-windows.cmd` from the extracted folder. It creates the local virtual environment and installs dependencies if necessary. Open http://127.0.0.1:8001.
+1. In **Redact**, upload the baseline PDF and select **Save source receipt**. Retain the original PDF and receipt independently of the candidate.
+2. In **Integrity lab → Investigate a source revision**, select the baseline, candidate and receipt. If the candidate is a redacted export, supply the proof ZIP from that export to account for authorized redactions.
+3. Choose **Compare source PDFs**. Review the signature and provenance, native field differences, visual findings and structural observations. **Include field values in results and report** is optional and can expose values in the displayed and exported results.
+4. Download the unsigned investigation report if needed. Retain input digests and original files for reproduction.
 
-## Investigate a candidate PDF
+A byte mismatch establishes that a candidate differs from the retained baseline. An authenticated reference and a raster comparison help localize the change. Native-field matching relies on unique colon-delimited labels on corresponding pages. It can miss duplicates and scanned fields. Structural findings include counts and metadata indicators. They do not identify the editor or validate a PDF signature's full coverage.
 
-1. Upload the baseline PDF in **Redact** and download its signed source receipt.
-2. In **Integrity lab**, upload the baseline, the candidate PDF and the independently retained baseline receipt.
-3. Choose whether to include field values. The comparison authenticates the baseline and reports whether the candidate has the same bytes, shows changed areas on the first changed page, and lists structural indicators and native-field differences.
-4. Download a JSON report. This report is an unsigned record of the investigation. Keep the input hashes and original inputs for reproducibility.
+## Generate a synthetic test copy
 
-A signed source receipt links the baseline version identifier and source hash to a trusted Studio key. It does not establish the candidate editor's identity. A changed candidate has unknown attribution. The tool does not infer an actor from document metadata. Structural observations cover object counts, embedded files, annotations, signature flags and the names of changed metadata keys. PDF signature coverage and revision chain parsing are outside this release. Native field comparison pairs unique colon-delimited labels within a page. The comparison can miss unlabeled or scanned values, same-label duplicates, or layout changes. Visual comparison uses the existing raster profile and excludes annotations.
+Choose **Run synthetic field-change test** for an example with generated source PDFs and a signed baseline receipt. You can download the test files after the run.
 
-The older disclosure-integrity tools still provide the marked visible and metadata-only test cases and verification with a proof ZIP. They run on your exported test copies.
+To edit your own test input, choose **Edit a PDF test copy**. Use **Replace extractable text** for unique native text on the selected page, or **Replace visible pixels** for a raster export. Preview the page and select a box in raster mode. Apply each edit to the working copy and download it when finished. The displayed hashes refer to the original input and the current edited copy.
 
-## Proof Studio
+Use **Verify** with the original proof ZIP to inspect an edited disclosure. Use the baseline investigation form for a candidate source revision. See the [integrity research notes](README_INTEGRITY_RESEARCH.md) for experimental controls.
 
-Issue a numeric holder record using the local CLI in [Private numeric claims](README_NUMERIC_CLAIMS.md). In **Proof Studio** supply one or more holder records, the verifier's expected policy and trusted issuer keys. Download the public presentation and verify it under **Verify private numeric claims** with the expected policy and trusted keys. Holder records go to the local Studio process. The exported presentation omits private openings.
+## Reproduce source comparison measurements
 
-## Status and research
-
-The implementation adds authenticated baseline investigation, field and visual localization, structural observations, proof generation through the website, and a Windows launcher. It reuses the existing signed disclosure, OCR and private numeric claim implementations. The complete revised brief still requires authenticated editor identities and signed version chains, hosted access, contextual AI, broader semantic and revision analysis, and full adversarial coverage and evaluation.
-
-A cryptographic hash comparison provides the integrity baseline. Unique-label field comparison tests whether a native text change can be assigned to a field. Visual localization identifies changed raster regions. These measure different aspects of forensic detection. The synthetic API tests exercise a matching baseline, a changed field, invalid signatures and privacy-conscious reporting. They do not establish real-world accuracy or novelty. See the [PDF Association's forensic analysis guidance](https://pdfa.org/challenges-in-the-forensic-analysis-of-pdf-files/) for context about revision and signature coverage analysis.
-
-Reproduce the three fixture measurements with `python benchmarks/source_forensics.py`. The [raw data](../benchmarks/source-forensics-results.json) records ten runs for each fixture.
-
-### Synthetic field-change test
-
-In **Integrity lab**, run **Run synthetic field-change test** to compare two generated native-text records. The signed baseline contains `Review score: 78` and the modified test copy contains `Review score: 96`. The field difference comes from extracting text from both PDFs. The downloadable test ZIP has both files and the signed baseline receipt. The overlay test separately demonstrates a change in rendered appearance.
-
-### Demonstrate a hash mismatch with your own PDF
-
-In **Integrity lab → Change a value in a test copy**, upload a supported PDF that you own. Use **Replace extractable text** for native PDF text and enter a value that appears once on the selected page. Use **Replace visible pixels** for a redacted raster export. Preview its page and drag around the visible value. Enter a short ASCII replacement and download the edited test copy. The panel reports the SHA-256 fingerprints of the unchanged input and the edited output.
-
-For an original source, compare the test copy against the original PDF and its saved source receipt in **Investigate a source revision**. For a redacted export, upload the edited copy in **Verify** with the original proof ZIP. The signed reference hash remains the one recorded before the edit. A mismatch identifies changed bytes. The visual comparison identifies affected page regions, and the native field comparison is limited to comparable extracted text. Redacted pixels cannot be recovered from a LegitZK export.
+Run `python -m benchmarks.source_forensics` from the project root. The [saved measurements](../benchmarks/source-forensics-results.json) contain per-fixture timing samples. These synthetic results do not establish real-world forensic accuracy.

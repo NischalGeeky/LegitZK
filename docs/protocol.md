@@ -1,5 +1,7 @@
 # APBD v1 protocol and threat model
 
+This protocol describes the earlier structured-contract service. For the current PDF Studio, see [adaptive raster and field proofs](README_ZERO_KNOWLEDGE.md).
+
 ## Actors and assumptions
 
 The issuer attests five typed text fields, a USD amount in cents, and the SHA-256 fingerprint of the source PDF. The owner has the openings and amount witness. The auditor independently controls the expected policy, document ID, recipient identity, random 256-bit challenge, expiration and issuer public key. The online service is trusted with the original and witness, issues requests on the auditor's behalf, and maintains state for online replay prevention. The offline verifier consumes the package, original auditor request, and trust mapping through three distinct inputs.

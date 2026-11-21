@@ -28,8 +28,8 @@ Maintain a renderer-version matrix when extending the experiment. A clean bundle
 - Mainka, Mladenov, and Rohlmann, *Shadow Attacks: Hiding and Replacing Content in Signed PDFs*, NDSS 2021. Relevant prior work on discrepancies between document presentation and integrity guarantees. [Paper](https://www.ndss-symposium.org/wp-content/uploads/ndss2021_1B-4_24117_paper.pdf)
 - PDF Association, *Challenges in the forensic analysis of PDF files*. Discusses incremental updates, redundant metadata, and implementation variability. [Article](https://pdfa.org/challenges-in-the-forensic-analysis-of-pdf-files)
 
-## Extensions beyond zero-knowledge proofs
+## Implemented controls and a follow-up
 
-1. **Export privacy lint.** Before sharing, check the final PDF for selectable text, attachments, annotations, and residual metadata. Show each result as a separate check, with page references where applicable.
-2. **Disclosure history.** Track which regions each recipient saw. Warn when two individually acceptable releases together expose a protected field or reconstruct a larger sensitive region.
-3. **Independent reviewer approval.** Let a second local reviewer sign the approved region map and bind their approval to the released package. Keep private audit records separate from the disclosure bundle.
+Image-only exports undergo structural checks. Optional OCR scans look for known protected values in the output. The Studio can record releases and report cumulative raster exposure for the same source and recipient. These controls are described in the [Studio guide](../README_PDF_STUDIO.md#detection-and-privacy-review).
+
+Independent reviewer signatures on region approvals are a possible follow-up. The current signed source receipt and disclosure inventory establish Studio provenance.

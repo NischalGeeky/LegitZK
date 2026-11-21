@@ -20,9 +20,18 @@ flowchart TD
 | Detection | `field_detector.py` extracts PyMuPDF text coordinates, optionally invokes local Tesseract, and returns regions and category labels. No recognized text is sent back by the detection API. |
 | Planner | `adaptive_mask.py` validates and canonicalizes region policies, determines forced 8-pixel tiles, and merges uniform quadtree branches. |
 | Proof | `adaptive_proof.py` signs and authenticates tile commitments, generates the export, and verifies the same plan. It reuses the Ristretto255 helper and the two-relation Schnorr protocol. |
-| Compatibility | `pdf_redaction.py` contains shared PDF and proof operations and the old fixed-grid implementation. Verification dispatches using the signed receipt profile. `app.py` is the earlier threshold demo. |
+| Release and forensics | `disclosure_bundle.py` signs the file inventory. `disclosure_compare.py` compares a changed candidate with the proof-authenticated export. `revision_test.py` edits test copies and `forensic_review.py` compares source revisions. |
+| Private claims | `field_equality.py` issues signed field commitments. `field_claim.py` validates requests and builds or verifies equality and bounded-range proofs. `claim_nlp.py` is the optional question translator. |
+| Exposure | `privacy_review.py` implements heuristic privacy checks. `exposure.py` records opt-in mask history. |
+| Compatibility | `pdf_redaction.py` contains shared PDF and proof operations and the old fixed-grid implementation. The compatibility verification endpoints dispatch using the signed receipt profile. The main two-file inspection endpoint expects the adaptive profile. `app.py` is the earlier threshold demo. |
 | Benchmark | `benchmarks/adaptive_studio.py` analyzes independent synthetic layout families and compares adaptive, fixed-32 and fixed-8 modes on shared commitments and identical approved regions. |
 
 ## Trust boundary
 
 The local ingester receives the original PDF and signs a receipt covering the PDF hash and the committed raster inventory. The two-file workflow trusts the configured issuer key and verifies the signed inventory and bundled request. Recipients who independently retain an expected request and receipt can use the earlier verification API. The verifier does not run the original PDF parser. It checks public consistency with the attested raster. The parser, classifier and OCR are trusted local code; no third-party service receives the original. The service is single-user and designed for loopback, with in-process PDF parsing and no server-side tenant isolation. The signing key persists in `.legitzk-pdf/ingestion.key`; workspaces are temporary and lazily pruned.
+
+## Workspace and private claim flow
+
+The owner registers the private value and a public label against a hide region before export. The service holds the opening in the workspace and returns only the public signed field record in the ZIP. In local mode, **Use current Redact export** loads the current proof pair without re-uploading it. **Review condition** creates a request and **Prove and verify** uses the opening and verifies the returned proof. The file-exchange mode keeps the request and proof portable. The owner must still have the originating workspace to generate the proof.
+
+The Studio uses `LEGITZK_PDF_HOME` to override the default `.legitzk-pdf/` directory. Workspace data expires after 20 minutes and can be evicted sooner when new sources are opened. Its private openings are lost on restart. The retention window for a redaction request is one hour. The earlier contract service uses a separate data directory and launch configuration.

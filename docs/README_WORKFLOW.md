@@ -1,37 +1,27 @@
-# LegitZK PDF Disclosure Studio | Working and presentation demo
+# LegitZK demonstration walkthrough
 
-## Open the studio on Windows
+Start the [local Studio](../README_PDF_STUDIO.md) at port 8001. Use the bundled synthetic vendor PDF throughout this demo.
 
-Run this from the installed release folder, with your existing `libsodium.dll` next to `rangeproof.py`:
+## Redact and verify
 
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn pdf_studio:app --host 127.0.0.1 --port 8001 --no-access-log
-```
+1. In **Redact**, upload `fixtures/demo-vendor.pdf` and click **Upload and commit**.
+2. Search for `Settlement Amount =>`, run **Detect fields**, and hide the settlement amounts on both pages. The first page reads `USD 5,230`. Select only the sensitive values you want covered. Use the preview tools to check page and pixel bounds.
+3. Enter a recipient label and click **Review redaction plan**. Under **Register fields for private proofs**, choose the page 1 settlement region. Use **Settlement amount (page 1)** as the public label, **Amount (two decimal places)** as the datatype, **USD** as the currency code, and **5230** as the private value. Click **Add field**.
+4. Click **Generate proof and PDF**. In **Verify**, upload both downloads and click **Verify disclosure**. For the following steps, keep the original Redact workspace open.
 
-Open [http://127.0.0.1:8001](http://127.0.0.1:8001). The [setup guide](../README_PDF_STUDIO.md) covers initial installation.
+## Prove a private claim
 
-## Live demo with one page
+1. In **Zero Knowledge Proof**, click **Use current Redact export**.
+2. Choose the registered field, **At least**, and enter the public comparison amount **5000**. Click **Review condition**, confirm the displayed condition and click **Prove and verify**.
+3. Repeat with **6000**. The owner can prove the first condition. LegitZK displays that no proof was generated for the second. The positive result is about the registered commitment.
+4. With the [optional NLP model](../README_PDF_STUDIO.md#optional-local-tools) set up, try **Your question → Interpret question**, check the populated controls, and then use the same review and proof buttons.
 
-1. Upload `fixtures/sample-1-page.pdf` and select **Upload and commit**.
-2. In **Custom search phrases**, enter `Confidential reference =>`, then select **Detect fields**. The custom suggestion highlights the value after the label. Click **Hide** on that suggestion and dismiss duplicate or irrelevant candidates.
-3. Under **Drag tool**, select **Mark to keep visible**. Drag around the public account status, or use **Enter region coordinates** to add the pixel box left 96, top 304, right 281, bottom 325 on page 1.
-4. Enter `Demo reviewer` and select **Review redaction plan**. Check the shaded mask, tile count and any pixels added by grid alignment.
-5. Select **Generate proof and PDF**. Download `redacted.pdf` and `legitzk-proof.zip`.
-6. Open **Verify**. Upload the PDF and the ZIP, then choose **Verify disclosure**. Inspect the signed file inventory in the result.
+For another owner, load the matching PDF and ZIP. Review the condition and use **Exchange a proof with someone else** to download the request. The owner loads it under **Respond as document owner**, approves the displayed condition, and returns the proof. The recipient verifies the returned proof with the original request and the matching disclosure loaded.
 
-For a document-style example, upload `fixtures/demo-lease.pdf` and search for `Settlement Amount =>`. Use the [corpus guide](README_PUBLIC_PDF_TESTING.md) to choose an additional public sample.
+## Show a changed export
 
-## Locate an altered disclosure
+Use **Integrity lab → Edit a PDF test copy**. Upload the redacted export, select **Replace visible pixels**, preview the page, and draw around a visible value. Apply a short replacement and download the edited copy. Back in **Verify**, substitute it for the redacted PDF and keep the original ZIP. Compare the byte checks and the visual findings. For native source comparison, use the [source investigation guide](README_SOURCE_FORENSICS.md).
 
-1. With the verified files still selected in **Verify**, open **Integrity lab**.
-2. Run the metadata-only test. It reports changed PDF bytes with no visible differences at the comparison resolution.
-3. Run the visible-edit test. It reports changed pixels and shows an annotated preview of the first changed page.
-4. Download either test copy and substitute it into the PDF input in **Verify**. Keep the original ZIP selected. The report identifies the changed PDF and confirms which JSON files still match the signed inventory.
+## Presentation summary
 
-For a policy conflict, add a hide rectangle that shares an 8-pixel tile with a keep-visible selection. Review the reported conflict, adjust the boxes, and rebuild the plan.
-
-## Suggested viva explanation
-
-> The recipient checks the issuer Studio's signature on the exported file inventory. The proof then establishes consistency with commitments to the original raster while keeping the hidden pixels and private openings secret. The visual comparison uses the proof-authenticated redacted raster to identify page differences after a PDF byte mismatch. A human still approves the regions suggested by the detector.
-
-See the [integrity benchmark](README_INTEGRITY_RESEARCH.md) for baseline comparisons and metrics.
+LegitZK commits to a raster of the original at ingestion and checks that the release follows the approved mask. The numeric proof uses a separate commitment to an owner-attested value. It can demonstrate a condition on that commitment while withholding the exact value. The reviewer is responsible for approving the mask and checking the value against the source.

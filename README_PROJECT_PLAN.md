@@ -1,40 +1,27 @@
-# LegitZK project plan and implementation status
+# LegitZK project scope and implementation status
 
-**Updated 18 November 2026.** Research prototype for Authenticated Policy-Bound Disclosure (APBD), using synthetic vendor contracts with one fixed schema.
+The primary project is a local PDF redaction and verification studio. The practical goal is to let an owner share a masked PDF with evidence that the visible pixels and redaction policy agree with a trusted ingestion receipt.
 
-## Goal and implemented workflow
-
-A trusted issuer generates a signed manifest over a source PDF fingerprint and structured claims. An auditor creates a versioned policy and audience-specific challenge. The owner previews a new PDF generated from the allowed fields and produces zero-knowledge evidence that the signed private amount meets the public threshold. The auditor independently verifies the manifest, disclosed values, PDF regeneration and proof against the retained audit request.
-
-| Area | Current implementation |
+| Area | Shipped behavior |
 |---|---|
-| Issuance and source | Ed25519 signatures, immutable document IDs, signed SHA-256 source digest, original preview and exact PDF file matching. |
-| Document schema | Vendor, buyer, date, service, bank reference and bounded amount in USD cents. |
-| Policy | Versioned issuer/schema/document checks, exact visible-field set, optional required service, mandatory vendor/buyer/date, threshold and challenge expiry. |
-| ZK | Noninteractive Ristretto255 range argument over the same issuer-signed amount commitment. Public transcript binds the rest of the evidence. |
-| Document privacy | Fresh template render from permitted claims with a byte-for-byte verifier check. |
-| Product | Landing page, roles and sessions, account dashboard, issuance, source review, redaction preview, sharing and revocation, audit events, verification portal and benchmark panel. |
-| Verification | Independent Python CLI and web upload portal, plus server-side single-use state for the designated auditor. |
-| Development | FastAPI, SQLite and browser-native frontend. Docker/Compose and CI definitions are included. |
+| Ingestion | A local Studio key signs a source fingerprint, raster profile and tile-commitment root for a supported PDF. |
+| Redaction | A reviewer approves hide and keep regions using page previews and optional detection. The planner coalesces uniform tiles at a fixed fine-grid coverage. |
+| Release | A fresh image-only PDF and signed proof ZIP carry the disclosed raster and its verification evidence. |
+| Verification and forensics | The verifier checks the exact PDF and ZIP, optionally checks an expected source, and reports byte or visible differences. |
+| Private financial example | A local owner can register a settlement amount and prove an exact comparison or range over that commitment. The UI also offers whole numbers, dates and code/text. |
+| Privacy review | Optional OCR and export history provide heuristic leakage checks and geometric exposure checks. |
 
-## Design changes from the original proposal
+## Acceptance and research
 
-A fixed signed hash inventory replaces a generic Merkle tree because the first schema contains five text fields. A discrete-log range argument replaces the proposed Circom/snarkjs circuit. It uses vetted group arithmetic, requires no trusted setup and proves one bounded predicate. This makes the prototype directly runnable with the installed Python and libsodium runtime. General circuits and larger authenticated structures remain research directions. The app substitutes single-service SQLite and plain browser modules for PostgreSQL, queues, separate workers and Next.js. Contract exports are fresh PDFs generated from claims, with source association vouched for by the issuer. Pixel comparison and arbitrary source-document editing are outside the implemented guarantee.
+The central experiments compare adaptive, fixed-8 and fixed-32 cuts on identical synthetic layouts. Separate fixtures cover proof binding, evidence file attribution, source revisions, and exposure across releases. The [evaluation guide](docs/README_PUBLIC_PDF_TESTING.md) links the recorded data and explains how to reproduce the measurements.
 
-## Acceptance evidence
+The earlier role-based contract app and issuer-backed numeric CLI are retained as separate experiments. Their designs and results are documented in the [contract protocol](docs/protocol.md), [paper draft](docs/paper.md), and [numeric claims guide](docs/README_NUMERIC_CLAIMS.md).
 
-- Issuer signatures, exact schema and disclosed values, threshold proofs, expiry and transplant cases exercised by the automated protocol and API suites.
-- Local application started successfully. API integration exercised registration, signing, source matching, proof generation, sharing, verification, replay rejection and revocation.
-- PDF extraction and object inspection exercised the generated disclosure fixtures, including rejection when attachment and annotation objects were added.
-- Thirty measured benchmark trials produced raw timing and package-size data and a recipient-transplant control.
-- Chromium workflow and Docker launch remain unverified in this execution environment. See the [delivery report](docs/delivery.md).
+## Open research questions
 
-## Next research and engineering milestones
+- How well does the adaptive layout perform on independent document families and rendering environments?
+- How reliable are detection and optional question interpretation on human-written, independently annotated examples?
+- What issuer or extraction process could give a third party stronger assurance that a registered value matches the source?
+- How should disclosure history account for collusion, transformed sources and information inferred from repeated claims?
 
-1. Independently review the protocol design, proof implementation and PDF renderer. Add formal proof review and interoperable wire-format vectors before real applications.
-2. Verify Docker installation and cross-browser operation. Add accessibility auditing, PDF rendering differences, load tests and backup/restore checks.
-3. Expand policy typing and schemas, compare against a Merkle-opening baseline at scale, and benchmark a reviewed succinct range-proof or general circuit backend.
-4. Evaluate independent visual redaction proofs for source PDF workflows and build a dedicated sanitizer only if the product scope expands to arbitrary input.
-5. Add OIDC/MFA, tenant administration, managed keys, revocation, recovery, file lifecycle controls and isolated proving workers for any future deployment handling real data.
-
-See [Literature review](README_LITERATURE_REVIEW.md), [Protocol](docs/protocol.md), [Operations](docs/operations.md), and [Paper draft](docs/paper.md).
+The implementation is research code. Independent cryptographic and PDF handling review, browser and accessibility evaluation, and a defined deployment threat model would be needed for broader use.

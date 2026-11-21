@@ -1,5 +1,7 @@
 # Architecture and operations
 
+This guide applies to the earlier role-based contract service in `app.py` on port 8000. For the final PDF Studio, see the [setup guide](../README_PDF_STUDIO.md) and [architecture](README_ARCHITECTURE.md).
+
 ## Components
 
 - `web/` contains a responsive dependency-free ES module, stylesheet and HTML shell. The browser uses same-origin requests and its native PDF viewer.
